@@ -25,7 +25,36 @@
       لو ما التقط تلقائيًا: اكتب IMEI يدوي. الكاميرا تحتاج HTTPS.
     </div>
   </div>
+<div class="card">
+  <div class="row">
+    <button id="startCam">إضافة جهاز (فتح الكاميرا)</button>
+    <button id="stopCam">إيقاف</button>
+  </div>
+  <video id="video" autoplay playsinline></video>
+  <div class="small">
+    لو ما التقط تلقائيًا: اكتب IMEI يدوي. الكاميرا تحتاج HTTPS.
+  </div>
+</div>
 
+<div class="card">
+  <label>IMEI (15 رقم)</label>
+  <input id="imei" inputmode="numeric" placeholder="مثال: 356789012345678" />
+
+  <label>الكود (2 أو 3 خانات)</label>
+  <input id="code" inputmode="numeric" placeholder="مثال: 42 أو 100" />
+
+  <div class="row">
+    <button id="add">إضافة</button>
+    <button id="export">تصدير PDF</button>
+  </div>
+
+  <button id="clear">مسح القائمة</button>
+</div>
+
+<div class="card">
+  <h3>القائمة</h3>
+  <div id="list" class="small"></div>
+</div>
   <div class="card">
     <label>IMEI (15 رقم)</label>
     <input id="imei" inputmode="numeric" placeholder="مثال: 356789012345678" />
