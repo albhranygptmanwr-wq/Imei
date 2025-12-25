@@ -7,54 +7,35 @@
   <style>
     body{font-family:system-ui,Arial;padding:16px;max-width:560px;margin:auto}
     button,input{font-size:16px;padding:10px;margin:6px 0;width:100%;box-sizing:border-box}
-    #video{width:100%;border:1px solid #ddd;border-radius:12px;background:#000}
+    #video{display:flex;gap:10px}
+    #R{flex:1}
+    #L{flex:1}
+    #video{width:100%;border:1px solid #ddd;border-radius:12px;background:#000;min-height:220px}
     .row{display:flex;gap:10px}
     .row>*{flex:1}
     .small{font-size:13px;color:#666;line-height:1.4}
     .card{border:1px solid #eee;border-radius:14px;padding:12px;margin-top:12px}
-    .item{padding:8px;border-bottom:1px dashed #eee}
+    .item{padding:10px;border-bottom:1px dashed #eee}
+    h2,h3{margin:0 0 8px 0}
   </style>
 </head>
 <body>
+
   <h2>ملصقات IMEI (Static)</h2>
+  <div class="small">النتيجة: رقم 13xxxxx + باركود (IMEI) فقط.</div>
 
   <div class="card">
-    <button id="startCam">إضافة جهاز (فتح الكاميرا)</button>
+    <div class="row">
+      <button id="startCam">إضافة جهاز (فتح الكاميرا)</button>
+      <button id="stopCam">إيقاف</button>
+    </div>
     <video id="video" autoplay playsinline></video>
     <div class="small">
-      لو ما التقط تلقائيًا: اكتب IMEI يدوي. الكاميرا تحتاج HTTPS.
+      إذا جهازك iPhone: سيتم استخدام ZXing تلقائيًا.
+      لو ما التقط، أدخل IMEI يدوي.
     </div>
   </div>
-<div class="card">
-  <div class="row">
-    <button id="startCam">إضافة جهاز (فتح الكاميرا)</button>
-    <button id="stopCam">إيقاف</button>
-  </div>
-  <video id="video" autoplay playsinline></video>
-  <div class="small">
-    لو ما التقط تلقائيًا: اكتب IMEI يدوي. الكاميرا تحتاج HTTPS.
-  </div>
-</div>
 
-<div class="card">
-  <label>IMEI (15 رقم)</label>
-  <input id="imei" inputmode="numeric" placeholder="مثال: 356789012345678" />
-
-  <label>الكود (2 أو 3 خانات)</label>
-  <input id="code" inputmode="numeric" placeholder="مثال: 42 أو 100" />
-
-  <div class="row">
-    <button id="add">إضافة</button>
-    <button id="export">تصدير PDF</button>
-  </div>
-
-  <button id="clear">مسح القائمة</button>
-</div>
-
-<div class="card">
-  <h3>القائمة</h3>
-  <div id="list" class="small"></div>
-</div>
   <div class="card">
     <label>IMEI (15 رقم)</label>
     <input id="imei" inputmode="numeric" placeholder="مثال: 356789012345678" />
@@ -72,13 +53,13 @@
 
   <div class="card">
     <h3>القائمة</h3>
-    <div id="list" class="small"></div>
+    <div id="list" class="small">...</div>
   </div>
 
-  <!-- Libraries (CDN) -->
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
 
   <!-- App -->
   <script src="./app.js"></script>
