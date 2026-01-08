@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Label PDF</title>
+  <title>Label PDF – MS-B58A</title>
 
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
@@ -25,20 +25,20 @@
     .small{font-size:12px;opacity:.9}
   </style>
 
-  <!-- Barcode generator -->
+  <!-- Barcode -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <!-- PDF -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <!-- Fallback barcode scanner -->
+  <!-- Scanner fallback -->
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 
 <body>
   <div class="card">
-    <h2 style="margin:0 0 8px">Label (PDF)</h2>
+    <h2 style="margin:0 0 8px">Label PDF (MS-B58A)</h2>
     <div class="hint small">
-      للطباعة: Scale = 100% وأوقف Fit/Shrink.
-      <br>مقاس الصفحة داخل PDF مبني على 375×200 px.
+      إعدادات الطباعة: <b>Scale 100%</b> – أوقف <b>Fit / Auto resize</b>.
+      <br>المقاس مضبوط لمنع التقطيع.
     </div>
 
     <label>IMEI</label>
@@ -57,7 +57,7 @@
     <label>السعر (رقمين فقط مثل: 22)</label>
     <input id="price" inputmode="numeric" placeholder="مثال: 22" maxlength="2">
 
-    <button id="btnPdf">🧾 جهّز PDF للطباعة</button>
+    <button id="btnPdf">⬇️ تنزيل PDF</button>
 
     <div class="hint" id="msg"></div>
     <div class="hint small">
@@ -69,12 +69,10 @@
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  // Requested label size in PX (your printer setting)
+  // ===== MS-B58A FINAL SIZE =====
   const LABEL_W_PX = 375;
-  const LABEL_H_PX = 200;
-
-  // px -> pt (PDF points). Common web assumption: 96dpi => 1px = 0.75pt
-  const PX_TO_PT = 0.75;
+  const LABEL_H_PX = 178;     // رقم ذهبي يمنع التقطيع
+  const PX_TO_PT = 0.75;      // تحويل ثابت للـ PDF
 
   function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
   function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
@@ -85,56 +83,44 @@
     return s;
   }
 
-  // 13 + price(2 digits) + random so that (after 13) = 8 digits
+  // 13 + price(2) + random => بعد 13 = 8
   function makePricingCode(priceRaw){
     const p = digitsOnly(priceRaw);
-    if (p.length !== 2) return null;          // السعر رقمين فقط
-    const after13Total = 8;                  // بعد 13 = 8
-    const restLen = after13Total - p.length; // 8 - 2 = 6
-    return "13" + p + randomDigits(restLen); // الناتج 10 أرقام
+    if (p.length !== 2) return null;
+    return "13" + p + randomDigits(6);
   }
 
-  // Make barcode image from IMEI
   function makeBarcodePngDataUrl(imei){
     const c = document.createElement("canvas");
-    JsBarcode(c, imei, {
-      format: "CODE128",
-      displayValue: false,
-      margin: 0,
-      height: 70
-    });
+    JsBarcode(c, imei, { format:"CODE128", displayValue:false, margin:0, height:64 });
     return c.toDataURL("image/png");
   }
 
-  // ===== Scan (BarcodeDetector first, Quagga fallback) =====
+  // ===== Scanner =====
   let stream=null, quaggaRunning=false;
 
   async function startScan(){
-    $("videoWrap").style.display = "block";
-    $("btnStop").style.display = "block";
-    $("scanStatus").textContent = "فتح الكيمرا…";
+    $("videoWrap").style.display="block";
+    $("btnStop").style.display="block";
+    $("scanStatus").textContent="فتح الكيمرا…";
 
     if ("BarcodeDetector" in window){
       try{
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" }, audio:false });
-        const v = $("video");
-        v.srcObject = stream;
-        await v.play();
-
+        const v=$("video"); v.srcObject=stream; await v.play();
         const detector = new BarcodeDetector({ formats:["code_128","ean_13","qr_code","upc_a","upc_e","data_matrix","codabar","itf"] });
-        $("scanStatus").textContent = "وجّه الكيمرا على باركود IMEI…";
+        $("scanStatus").textContent="وجّه الكيمرا على باركود IMEI…";
 
         const tick = async ()=>{
           if(!stream) return;
           try{
             const res = await detector.detect(v);
             if(res && res.length){
-              const imei = cleanImei(res[0].rawValue || "");
-              if(imei.length >= 10){
-                $("imei").value = imei;
-                $("scanStatus").textContent = "✅ تم قراءة IMEI";
-                stopScan();
-                return;
+              const imei = cleanImei(res[0].rawValue||"");
+              if(imei.length>=10){
+                $("imei").value=imei;
+                $("scanStatus").textContent="✅ تم القراءة";
+                stopScan(); return;
               }
             }
           }catch(e){}
@@ -146,30 +132,20 @@
         stopScan();
       }
     } else {
-      $("scanStatus").textContent = "وجّه الكيمرا على الباركود…";
+      $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
       Quagga.init({
-        inputStream:{
-          name:"Live",
-          type:"LiveStream",
-          target:$("videoWrap"),
-          constraints:{ facingMode:"environment" }
-        },
-        decoder:{
-          readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"]
-        },
+        inputStream:{ name:"Live", type:"LiveStream", target:$("videoWrap"), constraints:{ facingMode:"environment" } },
+        decoder:{ readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"] },
         locate:true
       }, (err)=>{
-        if(err){ msg("فشل تشغيل قارئ الباركود.", false); return; }
-        Quagga.start();
-        quaggaRunning = true;
+        if(err){ msg("فشل تشغيل القارئ.", false); return; }
+        Quagga.start(); quaggaRunning=true;
       });
-
       Quagga.onDetected((data)=>{
-        const code = data?.codeResult?.code || "";
-        const imei = cleanImei(code);
-        if(imei.length >= 10){
-          $("imei").value = imei;
-          $("scanStatus").textContent = "✅ تم قراءة IMEI";
+        const imei = cleanImei(data?.codeResult?.code||"");
+        if(imei.length>=10){
+          $("imei").value=imei;
+          $("scanStatus").textContent="✅ تم القراءة";
           stopScan();
         }
       });
@@ -177,88 +153,60 @@
   }
 
   function stopScan(){
-    if(stream){
-      stream.getTracks().forEach(t=>t.stop());
-      stream=null;
-    }
-    if(quaggaRunning){
-      try{ Quagga.stop(); }catch(e){}
-      quaggaRunning=false;
-      try{ Quagga.offDetected(); }catch(e){}
-    }
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    if(quaggaRunning){ try{Quagga.stop()}catch(e){} quaggaRunning=false; try{Quagga.offDetected()}catch(e){} }
     $("videoWrap").style.display="none";
     $("btnStop").style.display="none";
   }
 
-  $("btnScan").onclick = ()=>{ msg(""); startScan(); };
-  $("btnStop").onclick = ()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
+  $("btnScan").onclick=()=>{ msg(""); startScan(); };
+  $("btnStop").onclick=()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
 
-  // ===== Generate PDF =====
-  $("btnPdf").onclick = ()=>{
+  // ===== Download PDF directly =====
+  $("btnPdf").onclick=()=>{
     const imei = cleanImei($("imei").value);
     const price = digitsOnly($("price").value);
+    if(!imei || imei.length<10) return msg("دخل IMEI صحيح.", false);
+    if(price.length!==2) return msg("السعر لازم رقمين فقط.", false);
 
-    if(!imei || imei.length < 10) return msg("دخل IMEI صحيح (أرقام فقط).", false);
-    if(price.length !== 2) return msg("السعر لازم يكون رقمين فقط (مثال: 22).", false);
-
-    const pricingCode = makePricingCode(price);
-    if(!pricingCode) return msg("السعر لازم يكون رقمين فقط.", false);
+    const code = makePricingCode(price);
+    if(!code) return msg("السعر لازم رقمين فقط.", false);
 
     const { jsPDF } = window.jspdf;
-
-    // PDF page size in points
     const pageW = LABEL_W_PX * PX_TO_PT;
     const pageH = LABEL_H_PX * PX_TO_PT;
 
     const doc = new jsPDF({
-      orientation: (pageW >= pageH) ? "landscape" : "portrait",
-      unit: "pt",
-      format: [pageW, pageH]
+      orientation: (pageW>=pageH)?"landscape":"portrait",
+      unit:"pt",
+      format:[pageW, pageH]
     });
 
-    // Layout (in pt)
-    const margin = 10;              // pt
-    const centerX = pageW / 2;
-
     // Border
-    doc.setDrawColor(0);
-    doc.setLineWidth(1);
-    doc.rect(1, 1, pageW-2, pageH-2);
+    doc.setDrawColor(0); doc.setLineWidth(1);
+    doc.rect(1,1,pageW-2,pageH-2);
 
-    // BIG pricing code (main)
-    doc.setTextColor(0);
-    doc.setFont("helvetica", "bold");
+    // BIG pricing code
+    doc.setFont("helvetica","bold");
+    let fs=34; doc.setFontSize(fs);
+    while(fs>18 && doc.getTextWidth(code)>(pageW-20)){ fs--; doc.setFontSize(fs); }
+    doc.text(code, pageW/2, 40, {align:"center"});
 
-    // Auto font size to fit
-    let fontSize = 34;
-    doc.setFontSize(fontSize);
-    while(fontSize > 18 && doc.getTextWidth(pricingCode) > (pageW - margin*2)){
-      fontSize -= 1;
-      doc.setFontSize(fontSize);
-    }
-    doc.text(pricingCode, centerX, 42, { align: "center" });
+    // Barcode
+    const img = makeBarcodePngDataUrl(imei);
+    const margin=10;
+    const by=52;
+    const bh=pageH-by-34;
+    doc.addImage(img,"PNG",margin,by,pageW-margin*2,bh,undefined,"FAST");
 
-    // Barcode image
-    const barcodeDataUrl = makeBarcodePngDataUrl(imei);
-
-    const barcodeX = margin;
-    const barcodeY = 54;
-    const barcodeW = pageW - margin*2;
-    const barcodeH = pageH - barcodeY - 36; // leave for IMEI
-
-    doc.addImage(barcodeDataUrl, "PNG", barcodeX, barcodeY, barcodeW, barcodeH, undefined, "FAST");
-
-    // IMEI under barcode
+    // IMEI
     doc.setFontSize(16);
-    doc.text(imei, centerX, pageH - 14, { align: "center" });
+    doc.text(imei, pageW/2, pageH-14, {align:"center"});
 
-    // Open PDF
-    const url = doc.output("bloburl");
-    window.open(url, "_blank");
-
-    msg("✅ تم تجهيز PDF. اطبعه على Scale 100% بدون Fit.", true);
+    // Direct download
+    doc.save(`Label_${imei}.pdf`);
+    msg("✅ تم تنزيل PDF مباشرة.", true);
   };
-
 </script>
 </body>
 </html>
