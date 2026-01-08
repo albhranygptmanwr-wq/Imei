@@ -3,65 +3,222 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>ملصقات IMEI</title>
+  <title>لصقة IMEI 220×375</title>
   <style>
-    body{font-family:system-ui,Arial;padding:16px;max-width:560px;margin:auto}
-    button,input{font-size:16px;padding:10px;margin:6px 0;width:100%;box-sizing:border-box}
-    #video{display:flex;gap:10px}
-    #R{flex:1}
-    #L{flex:1}
-    #video{width:100%;border:1px solid #ddd;border-radius:12px;background:#000;min-height:220px}
+    body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
+    .card{background:#121a24;border:1px solid #223042;border-radius:14px;padding:14px;max-width:520px}
+    label{display:block;margin:10px 0 6px;color:#bcd0ea;font-size:14px}
+    input,button{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid #2a3b52;background:#0f1620;color:#e8eef6;font-size:16px}
+    button{cursor:pointer;background:#1d6cff;border:none;margin-top:10px}
+    .secondary{background:#2a3b52}
     .row{display:flex;gap:10px}
-    .row>*{flex:1}
-    .small{font-size:13px;color:#666;line-height:1.4}
-    .card{border:1px solid #eee;border-radius:14px;padding:12px;margin-top:12px}
-    .item{padding:10px;border-bottom:1px dashed #eee}
-    h2,h3{margin:0 0 8px 0}
+    .row>div{flex:1}
+    canvas{width:100%;border-radius:14px;border:1px solid #223042;background:#fff;margin-top:12px}
+    .hint{font-size:13px;color:#9bb3d1;margin-top:10px;line-height:1.6}
+    .ok{color:#6ee7a8}.err{color:#ff8a8a}
+    #videoWrap{margin-top:10px;display:none}
+    video{width:100%;border-radius:14px;border:1px solid #223042;background:#000}
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 <body>
-
-  <h2>ملصقات IMEI (Static)</h2>
-  <div class="small">النتيجة: رقم 13xxxxx + باركود (IMEI) فقط.</div>
-
   <div class="card">
-    <div class="row">
-      <button id="startCam">إضافة جهاز (فتح الكاميرا)</button>
-      <button id="stopCam">إيقاف</button>
-    </div>
-    <video id="video" autoplay playsinline></video>
-    <div class="small">
-      إذا جهازك iPhone: سيتم استخدام ZXing تلقائيًا.
-      لو ما التقط، أدخل IMEI يدوي.
-    </div>
-  </div>
+    <h2 style="margin:0 0 8px">لصقة IMEI (PNG 220×375)</h2>
 
-  <div class="card">
-    <label>IMEI (15 رقم)</label>
-    <input id="imei" inputmode="numeric" placeholder="مثال: 356789012345678" />
-
-    <label>الكود (2 أو 3 خانات)</label>
-    <input id="code" inputmode="numeric" placeholder="مثال: 42 أو 100" />
+    <label>IMEI</label>
+    <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
 
     <div class="row">
-      <button id="add">إضافة</button>
-      <button id="export">تصدير PDF</button>
+      <div><button id="btnScan" class="secondary">📷 تصوير وقراءة الباركود</button></div>
+      <div><button id="btnStop" class="secondary" style="display:none">⛔ إيقاف</button></div>
     </div>
 
-    <button id="clear">مسح القائمة</button>
+    <div id="videoWrap">
+      <video id="video" playsinline muted></video>
+      <div class="hint" id="scanStatus">جاهز…</div>
+    </div>
+
+    <label>السعر</label>
+    <input id="price" inputmode="numeric" placeholder="مثال: 4500">
+
+    <button id="btnMake">🧾 جهّز اللصقة</button>
+    <button id="btnShare" class="secondary">📤 مشاركة للطباعة</button>
+    <button id="btnDownload" class="secondary">⬇️ تنزيل PNG</button>
+
+    <canvas id="label" width="220" height="375"></canvas>
+
+    <div class="hint" id="msg"></div>
+    <div class="hint">مهم: بعدها افتح الصورة داخل <b>تطبيق الطابعة</b> واطبع (Scale 100%).</div>
   </div>
 
-  <div class="card">
-    <h3>القائمة</h3>
-    <div id="list" class="small">...</div>
-  </div>
+<script>
+  const $ = (id)=>document.getElementById(id);
+  const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  <!-- Libraries -->
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  const W = 220, H = 375;
 
-  <!-- App -->
-  <script src="./app.js"></script>
+  function pad8(n){
+    const s = String(n ?? "").replace(/\D+/g,'');
+    return s.padStart(8,'0').slice(-8);
+  }
+  function cleanImei(v){ return String(v||"").replace(/\D+/g,'').slice(0,20); }
+
+  function drawLabel(imei, priceRaw){
+    const c = $("label");
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0,0,W,H);
+
+    // خلفية بيضاء
+    ctx.fillStyle="#ffffff";
+    ctx.fillRect(0,0,W,H);
+
+    // السعر كبير فوق
+    ctx.fillStyle="#000000";
+    ctx.textAlign="center";
+    ctx.font="bold 34px Arial";
+    ctx.fillText(String(priceRaw), W/2, 48);
+
+    // تسعيرتنا
+    const pricingLine = "13" + pad8(priceRaw);
+    ctx.font="bold 16px Arial";
+    ctx.fillText(pricingLine, W/2, 78);
+
+    // توليد باركود IMEI على Canvas مؤقت
+    const bc = document.createElement("canvas");
+    JsBarcode(bc, imei, { format:"CODE128", displayValue:false, margin:0, height:90 });
+    // قصّ وتمديد ليلائم
+    const bx = 10;
+    const by = 95;
+    const bw = W - 20;
+    const bh = 170;
+    ctx.drawImage(bc, bx, by, bw, bh);
+
+    // IMEI تحت الباركود
+    ctx.font="bold 18px Arial";
+    ctx.fillText(imei, W/2, by + bh + 30);
+
+    // خط خفيف أسفل (اختياري)
+    ctx.strokeStyle="#000000";
+    ctx.lineWidth=1;
+    ctx.strokeRect(1,1,W-2,H-2);
+  }
+
+  // ====== Scan (BarcodeDetector إن وجد، وإلا Quagga) ======
+  let stream=null, quaggaRunning=false;
+
+  async function startScan(){
+    $("videoWrap").style.display="block";
+    $("btnStop").style.display="block";
+    $("scanStatus").textContent="فتح الكيمرا…";
+
+    if ("BarcodeDetector" in window){
+      try{
+        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" }, audio:false });
+        const v=$("video"); v.srcObject=stream; await v.play();
+
+        const detector = new BarcodeDetector({ formats:["code_128","ean_13","qr_code","upc_a","upc_e","data_matrix","codabar","itf"] });
+        $("scanStatus").textContent="وجّه الكيمرا على باركود IMEI…";
+
+        const tick = async ()=>{
+          if(!stream) return;
+          try{
+            const res = await detector.detect(v);
+            if(res && res.length){
+              const imei = cleanImei(res[0].rawValue||"");
+              if(imei.length>=10){
+                $("imei").value=imei;
+                $("scanStatus").textContent="✅ تم قراءة IMEI";
+                stopScan();
+                return;
+              }
+            }
+          }catch(e){}
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }catch(e){
+        msg("لازم HTTPS وصلاحية كاميرا.", false);
+        stopScan();
+      }
+    } else {
+      // Quagga fallback
+      $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
+      Quagga.init({
+        inputStream:{ name:"Live", type:"LiveStream", target:$("videoWrap"), constraints:{ facingMode:"environment" } },
+        decoder:{ readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"] },
+        locate:true
+      }, (err)=>{
+        if(err){ msg("فشل تشغيل قارئ الباركود.", false); return; }
+        Quagga.start(); quaggaRunning=true;
+      });
+
+      Quagga.onDetected((data)=>{
+        const code = data?.codeResult?.code || "";
+        const imei = cleanImei(code);
+        if(imei.length>=10){
+          $("imei").value=imei;
+          $("scanStatus").textContent="✅ تم قراءة IMEI";
+          stopScan();
+        }
+      });
+    }
+  }
+
+  function stopScan(){
+    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+    if(quaggaRunning){ try{Quagga.stop()}catch(e){} quaggaRunning=false; try{Quagga.offDetected()}catch(e){} }
+    $("videoWrap").style.display="none";
+    $("btnStop").style.display="none";
+  }
+
+  $("btnScan").onclick = ()=>{ msg(""); startScan(); };
+  $("btnStop").onclick = ()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
+
+  // ====== Generate label ======
+  $("btnMake").onclick = ()=>{
+    const imei = cleanImei($("imei").value);
+    const priceRaw = String($("price").value||"").replace(/\D+/g,'');
+    if(!imei || imei.length<10) return msg("دخل IMEI صحيح.", false);
+    if(!priceRaw) return msg("دخل السعر.", false);
+    drawLabel(imei, priceRaw);
+    msg("✅ تم تجهيز اللصقة (220×375). الآن مشاركة للطباعة.", true);
+  };
+
+  function canvasToBlob(canvas){
+    return new Promise((resolve)=>canvas.toBlob(resolve, "image/png"));
+  }
+
+  $("btnDownload").onclick = async ()=>{
+    const blob = await canvasToBlob($("label"));
+    if(!blob) return msg("فشل إنشاء الصورة.", false);
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "label_220x375.png";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    msg("✅ تم تنزيل PNG.", true);
+  };
+
+  $("btnShare").onclick = async ()=>{
+    const blob = await canvasToBlob($("label"));
+    if(!blob) return msg("فشل إنشاء الصورة.", false);
+
+    const file = new File([blob], "label_220x375.png", { type:"image/png" });
+
+    // Share sheet (iOS/Android)
+    if (navigator.canShare && navigator.canShare({ files:[file] })) {
+      await navigator.share({ files:[file], title:"لصقة IMEI", text:"اطبعها من تطبيق الطابعة (Scale 100%)." });
+      msg("✅ اختر تطبيق الطابعة من المشاركة واطبع.", true);
+    } else {
+      // fallback: download
+      msg("المشاركة غير مدعومة هنا—استخدم تنزيل PNG ثم افتحه في تطبيق الطابعة.", false);
+    }
+  };
+
+  // رسم افتراضي
+  drawLabel("356000000000000", "4500");
+</script>
 </body>
 </html>
