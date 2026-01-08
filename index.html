@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Label</title>
+  <title>Label PDF</title>
 
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
@@ -17,7 +17,6 @@
     button.secondary{background:#2a3b52}
     .row{display:flex;gap:10px}
     .row>div{flex:1}
-    canvas{width:100%;border-radius:14px;border:1px solid #223042;background:#fff;margin-top:12px}
     .hint{font-size:13px;color:#9bb3d1;margin-top:10px;line-height:1.6}
     .ok{color:#6ee7a8}.err{color:#ff8a8a}
     #videoWrap{margin-top:10px;display:none}
@@ -26,14 +25,21 @@
     .small{font-size:12px;opacity:.9}
   </style>
 
+  <!-- Barcode generator -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <!-- PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <!-- Fallback barcode scanner -->
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 
 <body>
   <div class="card">
-    <h2 style="margin:0 0 8px">Label (PNG 375×200)</h2>
-    <div class="hint small">للطباعة داخل تطبيق الطابعة: Scale = 100% وأوقف Fit/Auto resize.</div>
+    <h2 style="margin:0 0 8px">Label (PDF)</h2>
+    <div class="hint small">
+      للطباعة: Scale = 100% وأوقف Fit/Shrink.
+      <br>مقاس الصفحة داخل PDF مبني على 375×200 px.
+    </div>
 
     <label>IMEI</label>
     <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
@@ -51,18 +57,11 @@
     <label>السعر (رقمين فقط مثل: 22)</label>
     <input id="price" inputmode="numeric" placeholder="مثال: 22" maxlength="2">
 
-    <button id="btnMake">🧾 جهّز اللصقة</button>
-
-    <div class="row">
-      <div><button id="btnShare" class="secondary">📤 مشاركة للطباعة</button></div>
-      <div><button id="btnDownload" class="secondary">⬇️ تنزيل PNG</button></div>
-    </div>
-
-    <canvas id="label" width="375" height="200"></canvas>
+    <button id="btnPdf">🧾 جهّز PDF للطباعة</button>
 
     <div class="hint" id="msg"></div>
     <div class="hint small">
-      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام) — الطول أقصر.
+      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام)
     </div>
   </div>
 
@@ -70,9 +69,12 @@
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  // ===== Size (updated) =====
-  const W = 375; // printed width
-  const H = 200; // shorter height
+  // Requested label size in PX (your printer setting)
+  const LABEL_W_PX = 375;
+  const LABEL_H_PX = 200;
+
+  // px -> pt (PDF points). Common web assumption: 96dpi => 1px = 0.75pt
+  const PX_TO_PT = 0.75;
 
   function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
   function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
@@ -92,66 +94,16 @@
     return "13" + p + randomDigits(restLen); // الناتج 10 أرقام
   }
 
-  // shrink font until text fits
-  function fitText(ctx, text, maxWidth, startSize, minSize){
-    let size = startSize;
-    while(size >= minSize){
-      ctx.font = `bold ${size}px Arial`;
-      if (ctx.measureText(text).width <= maxWidth) return size;
-      size--;
-    }
-    ctx.font = `bold ${minSize}px Arial`;
-    return minSize;
-  }
-
-  function drawLabel(imei, price2Digits){
-    const canvas = $("label");
-    const ctx = canvas.getContext("2d");
-
-    canvas.width = W;
-    canvas.height = H;
-
-    ctx.clearRect(0,0,W,H);
-
-    // Background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0,0,W,H);
-
-    // Border
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(1,1,W-2,H-2);
-
-    // BIG pricing code (main)
-    const pricingCode = makePricingCode(price2Digits);
-    if (!pricingCode) return;
-
-    ctx.fillStyle = "#000000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "alphabetic";
-
-    // Top big line (adjusted for shorter height)
-    fitText(ctx, pricingCode, W - 16, 48, 30);
-    ctx.fillText(pricingCode, W/2, 52);
-
-    // Barcode (IMEI)
-    const bc = document.createElement("canvas");
-    JsBarcode(bc, imei, {
+  // Make barcode image from IMEI
+  function makeBarcodePngDataUrl(imei){
+    const c = document.createElement("canvas");
+    JsBarcode(c, imei, {
       format: "CODE128",
       displayValue: false,
       margin: 0,
-      height: 58
+      height: 70
     });
-
-    const bx = 14;
-    const by = 64;
-    const bw = W - 28;
-    const bh = 82;
-    ctx.drawImage(bc, bx, by, bw, bh);
-
-    // IMEI under barcode
-    ctx.font = "bold 18px Arial";
-    ctx.fillText(imei, W/2, 188);
+    return c.toDataURL("image/png");
   }
 
   // ===== Scan (BarcodeDetector first, Quagga fallback) =====
@@ -241,51 +193,72 @@
   $("btnScan").onclick = ()=>{ msg(""); startScan(); };
   $("btnStop").onclick = ()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
 
-  // ===== Generate =====
-  $("btnMake").onclick = ()=>{
+  // ===== Generate PDF =====
+  $("btnPdf").onclick = ()=>{
     const imei = cleanImei($("imei").value);
     const price = digitsOnly($("price").value);
 
     if(!imei || imei.length < 10) return msg("دخل IMEI صحيح (أرقام فقط).", false);
     if(price.length !== 2) return msg("السعر لازم يكون رقمين فقط (مثال: 22).", false);
 
-    drawLabel(imei, price);
-    msg("✅ تم تجهيز اللصقة (375×200).", true);
-  };
+    const pricingCode = makePricingCode(price);
+    if(!pricingCode) return msg("السعر لازم يكون رقمين فقط.", false);
 
-  function canvasToBlob(canvas){
-    return new Promise((resolve)=>canvas.toBlob(resolve, "image/png"));
-  }
+    const { jsPDF } = window.jspdf;
 
-  $("btnDownload").onclick = async ()=>{
-    const blob = await canvasToBlob($("label"));
-    if(!blob) return msg("فشل إنشاء الصورة.", false);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "Label_375x200.png";
-    a.click();
-    URL.revokeObjectURL(a.href);
-    msg("✅ تم تنزيل PNG.", true);
-  };
+    // PDF page size in points
+    const pageW = LABEL_W_PX * PX_TO_PT;
+    const pageH = LABEL_H_PX * PX_TO_PT;
 
-  $("btnShare").onclick = async ()=>{
-    const blob = await canvasToBlob($("label"));
-    if(!blob) return msg("فشل إنشاء الصورة.", false);
+    const doc = new jsPDF({
+      orientation: (pageW >= pageH) ? "landscape" : "portrait",
+      unit: "pt",
+      format: [pageW, pageH]
+    });
 
-    const file = new File([blob], "Label_375x200.png", { type:"image/png" });
+    // Layout (in pt)
+    const margin = 10;              // pt
+    const centerX = pageW / 2;
 
-    if (navigator.canShare && navigator.canShare({ files:[file] })) {
-      await navigator.share({ files:[file], title:"Label", text:"اطبعها من تطبيق الطابعة (Scale 100%)." });
-      msg("✅ اختر تطبيق الطابعة من المشاركة واطبع.", true);
-    } else {
-      msg("المشاركة غير مدعومة هنا—استخدم تنزيل PNG ثم افتحه في تطبيق الطابعة.", false);
+    // Border
+    doc.setDrawColor(0);
+    doc.setLineWidth(1);
+    doc.rect(1, 1, pageW-2, pageH-2);
+
+    // BIG pricing code (main)
+    doc.setTextColor(0);
+    doc.setFont("helvetica", "bold");
+
+    // Auto font size to fit
+    let fontSize = 34;
+    doc.setFontSize(fontSize);
+    while(fontSize > 18 && doc.getTextWidth(pricingCode) > (pageW - margin*2)){
+      fontSize -= 1;
+      doc.setFontSize(fontSize);
     }
+    doc.text(pricingCode, centerX, 42, { align: "center" });
+
+    // Barcode image
+    const barcodeDataUrl = makeBarcodePngDataUrl(imei);
+
+    const barcodeX = margin;
+    const barcodeY = 54;
+    const barcodeW = pageW - margin*2;
+    const barcodeH = pageH - barcodeY - 36; // leave for IMEI
+
+    doc.addImage(barcodeDataUrl, "PNG", barcodeX, barcodeY, barcodeW, barcodeH, undefined, "FAST");
+
+    // IMEI under barcode
+    doc.setFontSize(16);
+    doc.text(imei, centerX, pageH - 14, { align: "center" });
+
+    // Open PDF
+    const url = doc.output("bloburl");
+    window.open(url, "_blank");
+
+    msg("✅ تم تجهيز PDF. اطبعه على Scale 100% بدون Fit.", true);
   };
 
-  // Preview default
-  $("imei").value = "356000000000000";
-  $("price").value = "22";
-  drawLabel("356000000000000", "22");
 </script>
 </body>
 </html>
