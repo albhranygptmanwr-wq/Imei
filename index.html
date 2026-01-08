@@ -3,14 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>لصقة IMEI 220×375</title>
+  <title>Label</title>
+
   <style>
     body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
-    .card{background:#121a24;border:1px solid #223042;border-radius:14px;padding:14px;max-width:520px}
+    .card{background:#121a24;border:1px solid #223042;border-radius:14px;padding:14px;max-width:560px}
     label{display:block;margin:10px 0 6px;color:#bcd0ea;font-size:14px}
-    input,button{width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid #2a3b52;background:#0f1620;color:#e8eef6;font-size:16px}
+    input,button{
+      width:100%;box-sizing:border-box;padding:12px;border-radius:12px;
+      border:1px solid #2a3b52;background:#0f1620;color:#e8eef6;font-size:16px
+    }
     button{cursor:pointer;background:#1d6cff;border:none;margin-top:10px}
-    .secondary{background:#2a3b52}
+    button.secondary{background:#2a3b52}
     .row{display:flex;gap:10px}
     .row>div{flex:1}
     canvas{width:100%;border-radius:14px;border:1px solid #223042;background:#fff;margin-top:12px}
@@ -18,14 +22,20 @@
     .ok{color:#6ee7a8}.err{color:#ff8a8a}
     #videoWrap{margin-top:10px;display:none}
     video{width:100%;border-radius:14px;border:1px solid #223042;background:#000}
+    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f1620;border:1px solid #223042;margin-top:10px}
+    .small{font-size:12px;opacity:.9}
   </style>
 
+  <!-- Barcode generator -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <!-- Fallback barcode scanner -->
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
+
 <body>
   <div class="card">
-    <h2 style="margin:0 0 8px">لصقة IMEI (PNG 220×375)</h2>
+    <h2 style="margin:0 0 8px">Label (PNG 375×220)</h2>
+    <div class="hint small">مهم: للطباعة داخل تطبيق الطابعة اختَر Scale = 100% وأوقف Fit/Auto resize.</div>
 
     <label>IMEI</label>
     <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
@@ -37,99 +47,127 @@
 
     <div id="videoWrap">
       <video id="video" playsinline muted></video>
-      <div class="hint" id="scanStatus">جاهز…</div>
+      <div class="badge" id="scanStatus">جاهز…</div>
     </div>
 
-    <label>السعر</label>
-    <input id="price" inputmode="numeric" placeholder="مثال: 4500">
+    <label>السعر (رقمين فقط مثل: 22)</label>
+    <input id="price" inputmode="numeric" placeholder="مثال: 22" maxlength="2">
 
     <button id="btnMake">🧾 جهّز اللصقة</button>
-    <button id="btnShare" class="secondary">📤 مشاركة للطباعة</button>
-    <button id="btnDownload" class="secondary">⬇️ تنزيل PNG</button>
 
-    <canvas id="label" width="220" height="375"></canvas>
+    <div class="row">
+      <div><button id="btnShare" class="secondary">📤 مشاركة للطباعة</button></div>
+      <div><button id="btnDownload" class="secondary">⬇️ تنزيل PNG</button></div>
+    </div>
+
+    <canvas id="label" width="375" height="220"></canvas>
 
     <div class="hint" id="msg"></div>
-    <div class="hint">مهم: بعدها افتح الصورة داخل <b>تطبيق الطابعة</b> واطبع (Scale 100%).</div>
+    <div class="hint small">
+      التسعيرة: <span class="ok">13 + السعر (رقمين) + 6 أرقام عشوائية</span> ⇒ بعد 13 = 8 أرقام
+    </div>
   </div>
 
 <script>
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  const W = 220, H = 375;
+  // ===== Label size (as requested) =====
+  const W = 375; // printed width
+  const H = 220; // page height
 
-  function pad8(n){
-    const s = String(n ?? "").replace(/\D+/g,'');
-    return s.padStart(8,'0').slice(-8);
+  function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
+  function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
+
+  function randomDigits(len){
+    let s = "";
+    for (let i=0;i<len;i++) s += Math.floor(Math.random()*10);
+    return s;
   }
-  function cleanImei(v){ return String(v||"").replace(/\D+/g,'').slice(0,20); }
 
-  function drawLabel(imei, priceRaw){
-    const c = $("label");
-    const ctx = c.getContext("2d");
+  // 13 + price(2 digits) + random so that (after 13) = 8 digits
+  function makePricingCode(priceRaw){
+    const p = digitsOnly(priceRaw);
+    if (p.length !== 2) return null;          // السعر رقمين فقط
+    const after13Total = 8;                  // ✅ المطلوب
+    const restLen = after13Total - p.length; // 8 - 2 = 6
+    return "13" + p + randomDigits(restLen); // الناتج 10 أرقام
+  }
+
+  function drawLabel(imei, price2Digits){
+    const canvas = $("label");
+    const ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,W,H);
 
-    // خلفية بيضاء
-    ctx.fillStyle="#ffffff";
+    // Background
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0,0,W,H);
 
-    // السعر كبير فوق
-    ctx.fillStyle="#000000";
-    ctx.textAlign="center";
-    ctx.font="bold 34px Arial";
-    ctx.fillText(String(priceRaw), W/2, 48);
+    // Border
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1,1,W-2,H-2);
 
-    // تسعيرتنا
-    const pricingLine = "13" + pad8(priceRaw);
-    ctx.font="bold 16px Arial";
-    ctx.fillText(pricingLine, W/2, 78);
+    // Price (big)
+    ctx.fillStyle = "#000000";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.font = "bold 44px Arial";
+    ctx.fillText(price2Digits, W/2, 54);
 
-    // توليد باركود IMEI على Canvas مؤقت
+    // Pricing code line
+    const pricingCode = makePricingCode(price2Digits);
+    ctx.font = "bold 20px Arial";
+    ctx.fillText(pricingCode, W/2, 86);
+
+    // Barcode (IMEI)
     const bc = document.createElement("canvas");
-    JsBarcode(bc, imei, { format:"CODE128", displayValue:false, margin:0, height:90 });
-    // قصّ وتمديد ليلائم
-    const bx = 10;
-    const by = 95;
-    const bw = W - 20;
-    const bh = 170;
+    // barcode height tuned for 375x220
+    JsBarcode(bc, imei, {
+      format: "CODE128",
+      displayValue: false,
+      margin: 0,
+      height: 64
+    });
+
+    const bx = 14;
+    const by = 96;
+    const bw = W - 28;
+    const bh = 78;
     ctx.drawImage(bc, bx, by, bw, bh);
 
-    // IMEI تحت الباركود
-    ctx.font="bold 18px Arial";
-    ctx.fillText(imei, W/2, by + bh + 30);
-
-    // خط خفيف أسفل (اختياري)
-    ctx.strokeStyle="#000000";
-    ctx.lineWidth=1;
-    ctx.strokeRect(1,1,W-2,H-2);
+    // IMEI under barcode
+    ctx.font = "bold 20px Arial";
+    ctx.fillText(imei, W/2, 206);
   }
 
-  // ====== Scan (BarcodeDetector إن وجد، وإلا Quagga) ======
+  // ===== Scan (BarcodeDetector first, Quagga fallback) =====
   let stream=null, quaggaRunning=false;
 
   async function startScan(){
-    $("videoWrap").style.display="block";
-    $("btnStop").style.display="block";
-    $("scanStatus").textContent="فتح الكيمرا…";
+    $("videoWrap").style.display = "block";
+    $("btnStop").style.display = "block";
+    $("scanStatus").textContent = "فتح الكيمرا…";
 
     if ("BarcodeDetector" in window){
       try{
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" }, audio:false });
-        const v=$("video"); v.srcObject=stream; await v.play();
+        const v = $("video");
+        v.srcObject = stream;
+        await v.play();
 
         const detector = new BarcodeDetector({ formats:["code_128","ean_13","qr_code","upc_a","upc_e","data_matrix","codabar","itf"] });
-        $("scanStatus").textContent="وجّه الكيمرا على باركود IMEI…";
+        $("scanStatus").textContent = "وجّه الكيمرا على باركود IMEI…";
 
         const tick = async ()=>{
           if(!stream) return;
           try{
             const res = await detector.detect(v);
             if(res && res.length){
-              const imei = cleanImei(res[0].rawValue||"");
-              if(imei.length>=10){
-                $("imei").value=imei;
-                $("scanStatus").textContent="✅ تم قراءة IMEI";
+              const imei = cleanImei(res[0].rawValue || "");
+              if(imei.length >= 10){
+                $("imei").value = imei;
+                $("scanStatus").textContent = "✅ تم قراءة IMEI";
                 stopScan();
                 return;
               }
@@ -143,23 +181,30 @@
         stopScan();
       }
     } else {
-      // Quagga fallback
-      $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
+      $("scanStatus").textContent = "وجّه الكيمرا على الباركود…";
       Quagga.init({
-        inputStream:{ name:"Live", type:"LiveStream", target:$("videoWrap"), constraints:{ facingMode:"environment" } },
-        decoder:{ readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"] },
+        inputStream:{
+          name:"Live",
+          type:"LiveStream",
+          target:$("videoWrap"),
+          constraints:{ facingMode:"environment" }
+        },
+        decoder:{
+          readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"]
+        },
         locate:true
       }, (err)=>{
         if(err){ msg("فشل تشغيل قارئ الباركود.", false); return; }
-        Quagga.start(); quaggaRunning=true;
+        Quagga.start();
+        quaggaRunning = true;
       });
 
       Quagga.onDetected((data)=>{
         const code = data?.codeResult?.code || "";
         const imei = cleanImei(code);
-        if(imei.length>=10){
-          $("imei").value=imei;
-          $("scanStatus").textContent="✅ تم قراءة IMEI";
+        if(imei.length >= 10){
+          $("imei").value = imei;
+          $("scanStatus").textContent = "✅ تم قراءة IMEI";
           stopScan();
         }
       });
@@ -167,8 +212,15 @@
   }
 
   function stopScan(){
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    if(quaggaRunning){ try{Quagga.stop()}catch(e){} quaggaRunning=false; try{Quagga.offDetected()}catch(e){} }
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+      stream=null;
+    }
+    if(quaggaRunning){
+      try{ Quagga.stop(); }catch(e){}
+      quaggaRunning=false;
+      try{ Quagga.offDetected(); }catch(e){}
+    }
     $("videoWrap").style.display="none";
     $("btnStop").style.display="none";
   }
@@ -176,14 +228,16 @@
   $("btnScan").onclick = ()=>{ msg(""); startScan(); };
   $("btnStop").onclick = ()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
 
-  // ====== Generate label ======
+  // ===== Generate =====
   $("btnMake").onclick = ()=>{
     const imei = cleanImei($("imei").value);
-    const priceRaw = String($("price").value||"").replace(/\D+/g,'');
-    if(!imei || imei.length<10) return msg("دخل IMEI صحيح.", false);
-    if(!priceRaw) return msg("دخل السعر.", false);
-    drawLabel(imei, priceRaw);
-    msg("✅ تم تجهيز اللصقة (220×375). الآن مشاركة للطباعة.", true);
+    const price = digitsOnly($("price").value);
+
+    if(!imei || imei.length < 10) return msg("دخل IMEI صحيح (أرقام فقط).", false);
+    if(price.length !== 2) return msg("السعر لازم يكون رقمين فقط (مثال: 22).", false);
+
+    drawLabel(imei, price);
+    msg("✅ تم تجهيز اللصقة. الآن مشاركة للطباعة.", true);
   };
 
   function canvasToBlob(canvas){
@@ -193,9 +247,10 @@
   $("btnDownload").onclick = async ()=>{
     const blob = await canvasToBlob($("label"));
     if(!blob) return msg("فشل إنشاء الصورة.", false);
+
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "label_220x375.png";
+    a.download = "Label_375x220.png";
     a.click();
     URL.revokeObjectURL(a.href);
     msg("✅ تم تنزيل PNG.", true);
@@ -205,20 +260,18 @@
     const blob = await canvasToBlob($("label"));
     if(!blob) return msg("فشل إنشاء الصورة.", false);
 
-    const file = new File([blob], "label_220x375.png", { type:"image/png" });
+    const file = new File([blob], "Label_375x220.png", { type:"image/png" });
 
-    // Share sheet (iOS/Android)
     if (navigator.canShare && navigator.canShare({ files:[file] })) {
-      await navigator.share({ files:[file], title:"لصقة IMEI", text:"اطبعها من تطبيق الطابعة (Scale 100%)." });
+      await navigator.share({ files:[file], title:"Label", text:"اطبعها من تطبيق الطابعة (Scale 100%)." });
       msg("✅ اختر تطبيق الطابعة من المشاركة واطبع.", true);
     } else {
-      // fallback: download
       msg("المشاركة غير مدعومة هنا—استخدم تنزيل PNG ثم افتحه في تطبيق الطابعة.", false);
     }
   };
 
-  // رسم افتراضي
-  drawLabel("356000000000000", "4500");
+  // Preview default
+  drawLabel("356000000000000", "22");
 </script>
 </body>
 </html>
