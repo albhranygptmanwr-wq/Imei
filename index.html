@@ -26,16 +26,14 @@
     .small{font-size:12px;opacity:.9}
   </style>
 
-  <!-- Barcode generator -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <!-- Fallback barcode scanner -->
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 
 <body>
   <div class="card">
     <h2 style="margin:0 0 8px">Label (PNG 375×220)</h2>
-    <div class="hint small">مهم: للطباعة داخل تطبيق الطابعة اختَر Scale = 100% وأوقف Fit/Auto resize.</div>
+    <div class="hint small">للطباعة داخل تطبيق الطابعة: Scale = 100% وأوقف Fit/Auto resize.</div>
 
     <label>IMEI</label>
     <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
@@ -64,7 +62,7 @@
 
     <div class="hint" id="msg"></div>
     <div class="hint small">
-      التسعيرة: <span class="ok">13 + السعر (رقمين) + 6 أرقام عشوائية</span> ⇒ بعد 13 = 8 أرقام
+      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام) — السعر الكبير مخفي.
     </div>
   </div>
 
@@ -72,7 +70,7 @@
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  // ===== Label size (as requested) =====
+  // Size as requested
   const W = 375; // printed width
   const H = 220; // page height
 
@@ -89,9 +87,21 @@
   function makePricingCode(priceRaw){
     const p = digitsOnly(priceRaw);
     if (p.length !== 2) return null;          // السعر رقمين فقط
-    const after13Total = 8;                  // ✅ المطلوب
+    const after13Total = 8;                  // ✅ بعد 13 = 8
     const restLen = after13Total - p.length; // 8 - 2 = 6
     return "13" + p + randomDigits(restLen); // الناتج 10 أرقام
+  }
+
+  // Try to fit text inside width (shrink font until fits)
+  function fitText(ctx, text, maxWidth, startSize, minSize){
+    let size = startSize;
+    while(size >= minSize){
+      ctx.font = `bold ${size}px Arial`;
+      if (ctx.measureText(text).width <= maxWidth) return size;
+      size--;
+    }
+    ctx.font = `bold ${minSize}px Arial`;
+    return minSize;
   }
 
   function drawLabel(imei, price2Digits){
@@ -99,7 +109,7 @@
     const ctx = canvas.getContext("2d");
     ctx.clearRect(0,0,W,H);
 
-    // Background
+    // White background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0,0,W,H);
 
@@ -108,21 +118,20 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(1,1,W-2,H-2);
 
-    // Price (big)
+    // BIG pricing code (this is the main text)
+    const pricingCode = makePricingCode(price2Digits);
+    if (!pricingCode) return;
+
     ctx.fillStyle = "#000000";
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    ctx.font = "bold 44px Arial";
-    ctx.fillText(price2Digits, W/2, 54);
 
-    // Pricing code line
-    const pricingCode = makePricingCode(price2Digits);
-    ctx.font = "bold 20px Arial";
-    ctx.fillText(pricingCode, W/2, 86);
+    // Fit code to label width nicely
+    fitText(ctx, pricingCode, W - 16, 54, 32);
+    ctx.fillText(pricingCode, W/2, 60);
 
     // Barcode (IMEI)
     const bc = document.createElement("canvas");
-    // barcode height tuned for 375x220
     JsBarcode(bc, imei, {
       format: "CODE128",
       displayValue: false,
@@ -131,14 +140,14 @@
     });
 
     const bx = 14;
-    const by = 96;
+    const by = 78;      // moved up a bit to fit under the big code
     const bw = W - 28;
-    const bh = 78;
+    const bh = 92;
     ctx.drawImage(bc, bx, by, bw, bh);
 
     // IMEI under barcode
     ctx.font = "bold 20px Arial";
-    ctx.fillText(imei, W/2, 206);
+    ctx.fillText(imei, W/2, 208);
   }
 
   // ===== Scan (BarcodeDetector first, Quagga fallback) =====
@@ -237,7 +246,7 @@
     if(price.length !== 2) return msg("السعر لازم يكون رقمين فقط (مثال: 22).", false);
 
     drawLabel(imei, price);
-    msg("✅ تم تجهيز اللصقة. الآن مشاركة للطباعة.", true);
+    msg("✅ تم تجهيز اللصقة (الكبير هو كود التسعيرة).", true);
   };
 
   function canvasToBlob(canvas){
@@ -247,7 +256,6 @@
   $("btnDownload").onclick = async ()=>{
     const blob = await canvasToBlob($("label"));
     if(!blob) return msg("فشل إنشاء الصورة.", false);
-
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "Label_375x220.png";
@@ -271,6 +279,8 @@
   };
 
   // Preview default
+  $("imei").value = "356000000000000";
+  $("price").value = "22";
   drawLabel("356000000000000", "22");
 </script>
 </body>
