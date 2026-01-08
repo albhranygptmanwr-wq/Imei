@@ -32,7 +32,7 @@
 
 <body>
   <div class="card">
-    <h2 style="margin:0 0 8px">Label (PNG 375×220)</h2>
+    <h2 style="margin:0 0 8px">Label (PNG 375×200)</h2>
     <div class="hint small">للطباعة داخل تطبيق الطابعة: Scale = 100% وأوقف Fit/Auto resize.</div>
 
     <label>IMEI</label>
@@ -58,11 +58,11 @@
       <div><button id="btnDownload" class="secondary">⬇️ تنزيل PNG</button></div>
     </div>
 
-    <canvas id="label" width="375" height="220"></canvas>
+    <canvas id="label" width="375" height="200"></canvas>
 
     <div class="hint" id="msg"></div>
     <div class="hint small">
-      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام) — السعر الكبير مخفي.
+      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام) — الطول أقصر.
     </div>
   </div>
 
@@ -70,9 +70,9 @@
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  // Size as requested
+  // ===== Size (updated) =====
   const W = 375; // printed width
-  const H = 220; // page height
+  const H = 200; // shorter height
 
   function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
   function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
@@ -87,12 +87,12 @@
   function makePricingCode(priceRaw){
     const p = digitsOnly(priceRaw);
     if (p.length !== 2) return null;          // السعر رقمين فقط
-    const after13Total = 8;                  // ✅ بعد 13 = 8
+    const after13Total = 8;                  // بعد 13 = 8
     const restLen = after13Total - p.length; // 8 - 2 = 6
     return "13" + p + randomDigits(restLen); // الناتج 10 أرقام
   }
 
-  // Try to fit text inside width (shrink font until fits)
+  // shrink font until text fits
   function fitText(ctx, text, maxWidth, startSize, minSize){
     let size = startSize;
     while(size >= minSize){
@@ -107,9 +107,13 @@
   function drawLabel(imei, price2Digits){
     const canvas = $("label");
     const ctx = canvas.getContext("2d");
+
+    canvas.width = W;
+    canvas.height = H;
+
     ctx.clearRect(0,0,W,H);
 
-    // White background
+    // Background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0,0,W,H);
 
@@ -118,7 +122,7 @@
     ctx.lineWidth = 2;
     ctx.strokeRect(1,1,W-2,H-2);
 
-    // BIG pricing code (this is the main text)
+    // BIG pricing code (main)
     const pricingCode = makePricingCode(price2Digits);
     if (!pricingCode) return;
 
@@ -126,9 +130,9 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
 
-    // Fit code to label width nicely
-    fitText(ctx, pricingCode, W - 16, 54, 32);
-    ctx.fillText(pricingCode, W/2, 60);
+    // Top big line (adjusted for shorter height)
+    fitText(ctx, pricingCode, W - 16, 48, 30);
+    ctx.fillText(pricingCode, W/2, 52);
 
     // Barcode (IMEI)
     const bc = document.createElement("canvas");
@@ -136,18 +140,18 @@
       format: "CODE128",
       displayValue: false,
       margin: 0,
-      height: 64
+      height: 58
     });
 
     const bx = 14;
-    const by = 78;      // moved up a bit to fit under the big code
+    const by = 64;
     const bw = W - 28;
-    const bh = 92;
+    const bh = 82;
     ctx.drawImage(bc, bx, by, bw, bh);
 
     // IMEI under barcode
-    ctx.font = "bold 20px Arial";
-    ctx.fillText(imei, W/2, 208);
+    ctx.font = "bold 18px Arial";
+    ctx.fillText(imei, W/2, 188);
   }
 
   // ===== Scan (BarcodeDetector first, Quagga fallback) =====
@@ -246,7 +250,7 @@
     if(price.length !== 2) return msg("السعر لازم يكون رقمين فقط (مثال: 22).", false);
 
     drawLabel(imei, price);
-    msg("✅ تم تجهيز اللصقة (الكبير هو كود التسعيرة).", true);
+    msg("✅ تم تجهيز اللصقة (375×200).", true);
   };
 
   function canvasToBlob(canvas){
@@ -258,7 +262,7 @@
     if(!blob) return msg("فشل إنشاء الصورة.", false);
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "Label_375x220.png";
+    a.download = "Label_375x200.png";
     a.click();
     URL.revokeObjectURL(a.href);
     msg("✅ تم تنزيل PNG.", true);
@@ -268,7 +272,7 @@
     const blob = await canvasToBlob($("label"));
     if(!blob) return msg("فشل إنشاء الصورة.", false);
 
-    const file = new File([blob], "Label_375x220.png", { type:"image/png" });
+    const file = new File([blob], "Label_375x200.png", { type:"image/png" });
 
     if (navigator.canShare && navigator.canShare({ files:[file] })) {
       await navigator.share({ files:[file], title:"Label", text:"اطبعها من تطبيق الطابعة (Scale 100%)." });
