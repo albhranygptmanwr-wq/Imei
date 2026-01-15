@@ -1,169 +1,187 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Label PDF – MS-B58A</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Label PDF – MS-B58A</title>
 
-  <style>
-    body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
-    .card{background:#121a24;border:1px solid #223042;border-radius:14px;padding:14px;max-width:560px}
-    label{display:block;margin:10px 0 6px;color:#bcd0ea;font-size:14px}
-    input,button{
-      width:100%;box-sizing:border-box;padding:12px;border-radius:12px;
-      border:1px solid #2a3b52;background:#0f1620;color:#e8eef6;font-size:16px
-    }
-    button{cursor:pointer;background:#1d6cff;border:none;margin-top:10px}
-    button.secondary{background:#2a3b52}
-    .row{display:flex;gap:10px}
-    .row>div{flex:1}
-    .hint{font-size:13px;color:#9bb3d1;margin-top:10px;line-height:1.6}
-    .ok{color:#6ee7a8}.err{color:#ff8a8a}
-    #videoWrap{margin-top:10px;display:none}
-    video{width:100%;border-radius:14px;border:1px solid #223042;background:#000}
-    .badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f1620;border:1px solid #223042;margin-top:10px}
-    .small{font-size:12px;opacity:.9}
-  </style>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Tahoma,Arial;margin:16px;background:#0b0f14;color:#e8eef6}
+.card{background:#121a24;border:1px solid #223042;border-radius:14px;padding:14px;max-width:560px}
+label{display:block;margin:10px 0 6px;color:#bcd0ea;font-size:14px}
+input,button{
+  width:100%;box-sizing:border-box;padding:12px;border-radius:12px;
+  border:1px solid #2a3b52;background:#0f1620;color:#e8eef6;font-size:16px
+}
+button{cursor:pointer;background:#1d6cff;border:none;margin-top:10px}
+button.secondary{background:#2a3b52}
+.row{display:flex;gap:10px}
+.row>div{flex:1}
+.hint{font-size:13px;color:#9bb3d1;margin-top:10px}
+.ok{color:#6ee7a8}.err{color:#ff8a8a}
+#videoWrap{margin-top:10px;display:none}
+video{width:100%;border-radius:14px;border:1px solid #223042;background:#000}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;background:#0f1620;border:1px solid #223042;margin-top:10px}
+</style>
 
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 
 <body>
-  <div class="card">
-    <h2 style="margin:0 0 8px">Label PDF (MS-B58A)</h2>
+<div class="card">
+<h2>Label PDF (MS-B58A)</h2>
 
-    <label>IMEI</label>
-    <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
+<label>IMEI</label>
+<input id="imei" inputmode="numeric" placeholder="اقرأ بالكاميرا أو اكتب">
 
-    <div class="row">
-      <div><button id="btnScan" class="secondary">📷 تصوير وقراءة الباركود</button></div>
-      <div><button id="btnStop" class="secondary" style="display:none">⛔ إيقاف</button></div>
-    </div>
+<div class="row">
+  <div><button id="btnScan" class="secondary">📷 قراءة بالكاميرا</button></div>
+  <div><button id="btnStop" class="secondary" style="display:none">⛔ إيقاف</button></div>
+</div>
 
-    <div id="videoWrap">
-      <video id="video" playsinline muted></video>
-      <div class="badge" id="scanStatus">جاهز…</div>
-    </div>
+<div id="videoWrap">
+  <video id="video" playsinline muted></video>
+  <div class="badge" id="scanStatus">جاهز…</div>
+</div>
 
-    <label>السعر (رقمين فقط)</label>
-    <input id="price" inputmode="numeric" maxlength="2">
+<label>السعر</label>
+<input id="price" inputmode="numeric" placeholder="مثال: 22 أو 150 أو 1200">
 
-    <!-- إضافة فقط -->
-    <label>مقاس الليبل (PX)</label>
-    <div class="row">
-      <div><input id="w" value="375"></div>
-      <div><input id="h" value="178"></div>
-    </div>
+<label>مقاس الليبل (PX)</label>
+<div class="row">
+  <div><input id="w" value="384"></div>
+  <div><input id="h" value="192"></div>
+</div>
 
-    <button id="btnPdf">⬇️ تنزيل PDF</button>
-    <div class="hint" id="msg"></div>
-  </div>
+<button id="btnPdf">⬇️ تنزيل PDF</button>
+<div class="hint" id="msg"></div>
+</div>
 
 <script>
-  const $ = (id)=>document.getElementById(id);
-  const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
+const $ = id=>document.getElementById(id);
+const msg = (t,ok=true)=>$("msg").innerHTML=`<span class="${ok?'ok':'err'}">${t}</span>`;
+const PX_TO_PT = 0.75;
 
-  const PX_TO_PT = 0.75;
+/* ===== Helpers ===== */
+const digits = v=>String(v||"").replace(/\D+/g,'');
+const rand = n=>Array.from({length:n},()=>Math.floor(Math.random()*10)).join('');
 
-  function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
-  function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
+function makePricingCode(price){
+  price = digits(price);
+  if(price.length < 2 || price.length > 4) return null;
+  return "13" + price + rand(8 - price.length);
+}
 
-  function randomDigits(len){
-    let s = "";
-    for (let i=0;i<len;i++) s += Math.floor(Math.random()*10);
-    return s;
-  }
+/* ===== Arabic text as image ===== */
+function textToImage(text, fontSize){
+  const c = document.createElement("canvas");
+  const ctx = c.getContext("2d");
+  ctx.font = `bold ${fontSize}px Tahoma`;
+  const w = ctx.measureText(text).width + 20;
+  const h = fontSize + 20;
+  c.width = w; c.height = h;
+  ctx.font = `bold ${fontSize}px Tahoma`;
+  ctx.fillStyle = "#000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, w/2, h/2);
+  return c.toDataURL("image/png");
+}
 
-  function makePricingCode(priceRaw){
-    const p = digitsOnly(priceRaw);
-    if (p.length !== 2) return null;
-    return "13" + p + randomDigits(6);
-  }
+/* ===== Barcode image ===== */
+function barcodeImg(val){
+  const c=document.createElement("canvas");
+  JsBarcode(c,val,{format:"CODE128",displayValue:false,height:64,margin:0});
+  return c.toDataURL("image/png");
+}
 
-  function makeBarcodePngDataUrl(imei){
-    const c = document.createElement("canvas");
-    JsBarcode(c, imei, { format:"CODE128", displayValue:false, margin:0, height:64 });
-    return c.toDataURL("image/png");
-  }
+/* ===== Camera scan (BarcodeDetector) ===== */
+let stream=null, scanning=false;
 
-  /* ==== Scanner (تصليح فقط بدون تغيير منطقك) ==== */
-  let quaggaRunning=false;
+async function startScan(){
+  $("videoWrap").style.display="block";
+  $("btnStop").style.display="block";
+  $("scanStatus").textContent="فتح الكاميرا…";
 
-  function startScan(){
-    $("videoWrap").style.display="block";
-    $("btnStop").style.display="block";
-    $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
-
-    Quagga.init({
-      inputStream:{
-        type:"LiveStream",
-        target: $("video"),
-        constraints:{ facingMode:"environment" }
-      },
-      decoder:{ readers:["code_128_reader"] },
-      locate:true
-    }, err=>{
-      if(err){ msg("فشل تشغيل الكيمرا", false); return; }
-      Quagga.start(); quaggaRunning=true;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"environment"},audio:false
     });
+    const v=$("video");
+    v.srcObject=stream;
+    await v.play();
 
-    Quagga.onDetected(data=>{
-      const imei = cleanImei(data?.codeResult?.code);
-      if(imei.length>=10){
-        $("imei").value=imei;
-        stopScan();
+    const detector = new BarcodeDetector({formats:["code_128","ean_13","ean_8"]});
+    scanning=true;
+    $("scanStatus").textContent="وجّه الكاميرا على الباركود…";
+
+    const loop = async ()=>{
+      if(!scanning) return;
+      const res = await detector.detect(v);
+      if(res.length){
+        const imei = digits(res[0].rawValue);
+        if(imei.length>=10){
+          $("imei").value=imei;
+          stopScan();
+          return;
+        }
       }
-    });
+      requestAnimationFrame(loop);
+    };
+    loop();
+  }catch(e){
+    msg("فشل فتح الكاميرا (HTTPS مطلوب)",false);
+    stopScan();
   }
+}
 
-  function stopScan(){
-    if(quaggaRunning){ Quagga.stop(); quaggaRunning=false; }
-    $("videoWrap").style.display="none";
-    $("btnStop").style.display="none";
-  }
+function stopScan(){
+  scanning=false;
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+  $("videoWrap").style.display="none";
+  $("btnStop").style.display="none";
+}
 
-  $("btnScan").onclick=()=>{ msg(""); startScan(); };
-  $("btnStop").onclick=stopScan;
+$("btnScan").onclick=()=>{msg("");startScan()};
+$("btnStop").onclick=stopScan;
 
-  /* ==== PDF ==== */
-  $("btnPdf").onclick=()=>{
-    const imei = cleanImei($("imei").value);
-    const price = digitsOnly($("price").value);
-    if(!imei || imei.length<10) return msg("دخل IMEI صحيح.", false);
-    if(price.length!==2) return msg("السعر لازم رقمين.", false);
+/* ===== PDF ===== */
+$("btnPdf").onclick=()=>{
+  const imei=digits($("imei").value);
+  if(imei.length<10) return msg("IMEI غير صحيح",false);
 
-    const code = makePricingCode(price);
+  const code=makePricingCode($("price").value);
+  if(!code) return msg("السعر من 2 إلى 4 أرقام",false);
 
-    const w = parseInt($("w").value)||375;
-    const h = parseInt($("h").value)||178;
+  const w=parseInt($("w").value)||384;
+  const h=parseInt($("h").value)||192;
+  const pw=w*PX_TO_PT, ph=h*PX_TO_PT;
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({
-      unit:"pt",
-      format:[w*PX_TO_PT, h*PX_TO_PT]
-    });
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({
+    orientation: w>=h?"landscape":"portrait",
+    unit:"pt",
+    format:[pw,ph]
+  });
 
-    const pw=w*PX_TO_PT, ph=h*PX_TO_PT;
+  doc.rect(1,1,pw-2,ph-2);
 
-    doc.rect(1,1,pw-2,ph-2);
+  const shopImg=textToImage("البحراني للهواتف الذكية",18);
+  doc.addImage(shopImg,"PNG",(pw-220)/2,8,220,28);
 
-    doc.setFont("helvetica","bold");
-    doc.setFontSize(18);
-    doc.text("البحراني للهواتف الذكية", pw/2, 26, {align:"center"});
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(22);
+  doc.text(code,pw/2,52,{align:"center"});
 
-    doc.setFontSize(24);
-    doc.text(code, pw/2, 48, {align:"center"});
+  doc.addImage(barcodeImg(imei),"PNG",10,64,pw-20,ph-96);
 
-    doc.addImage(makeBarcodePngDataUrl(imei),"PNG",10,60,pw-20,ph-92);
+  doc.setFontSize(14);
+  doc.text(imei,pw/2,ph-14,{align:"center"});
 
-    doc.setFontSize(14);
-    doc.text(imei, pw/2, ph-12, {align:"center"});
-
-    doc.save(`Label_${imei}.pdf`);
-    msg("✅ تم تنزيل PDF", true);
-  };
+  doc.save(`Label_${imei}.pdf`);
+  msg("✅ تم إنشاء PDF");
+};
 </script>
 </body>
 </html>
