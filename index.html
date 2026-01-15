@@ -3,33 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الماسح المباشر السريع</title>
+    <title>الماسح الاحترافي (فلاش + زوم)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #eee; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
-        .container { background: white; padding: 15px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #222; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
+        .container { background: white; padding: 15px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         h3 { text-align: center; margin: 0 0 15px 0; color: #2c3e50; }
 
-        /* منطقة الكاميرا */
-        #reader { width: 100%; border-radius: 10px; overflow: hidden; background: #000; margin-bottom: 15px; border: 4px solid #007bff; display: none; }
-        
-        .scan-btn {
-            background-color: #dc3545; color: white; border: none; padding: 15px; 
-            width: 100%; border-radius: 10px; font-size: 18px; font-weight: bold; 
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-            margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        /* --- منطقة الكاميرا المخصصة --- */
+        #camera-container {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: none; /* مخفي حتى التشغيل */
         }
-        .scan-btn:active { transform: scale(0.98); }
+        
+        #reader { width: 100%; height: 100%; object-fit: cover; }
 
-        /* نصيحة التدوير */
-        .tip-box {
-            background-color: #fff3cd; color: #856404; padding: 10px; border-radius: 8px;
-            font-size: 13px; text-align: center; margin-bottom: 15px; border: 1px solid #ffeeba;
-            display: none; /* يظهر عند فتح الكاميرا */
+        /* المستطيل الأحمر (منطقة التركيز) */
+        .scan-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%; /* عريض */
+            height: 80px; /* قصير */
+            border: 3px solid rgba(255, 0, 0, 0.7);
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5); /* تعتيم حول المستطيل */
+            border-radius: 5px;
+            z-index: 10;
+            pointer-events: none;
+        }
+        /* خط المسح المتحرك */
+        .scan-line {
+            width: 100%; height: 2px; background: red;
+            position: absolute; top: 0;
+            animation: scanAnim 2s infinite linear;
+        }
+        @keyframes scanAnim { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
+
+        /* --- أدوات التحكم بالكاميرا (فلاش وزوم) --- */
+        .camera-controls {
+            display: flex; gap: 10px; align-items: center; justify-content: center;
+            background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;
+            display: none; /* تظهر عند فتح الكاميرا */
+        }
+        .icon-btn {
+            background: white; border: 1px solid #ccc; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn.active { background-color: #ffc107; border-color: #ffc107; color: #000; }
+        
+        /* شريط الزوم */
+        .zoom-slider-container { flex-grow: 1; display: flex; align-items: center; gap: 5px; }
+        input[type=range] { width: 100%; }
+
+        /* زر التشغيل الرئيسي */
+        .main-scan-btn {
+            width: 100%; padding: 15px; background-color: #dc3545; color: white;
+            border: none; border-radius: 10px; font-size: 18px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin-bottom: 20px;
         }
 
         /* الحقول */
@@ -41,16 +83,16 @@
         .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 8px; background-color: #f8f9fa; overflow: hidden; }
         .fixed-part { background-color: #007bff; color: white; padding: 12px; font-weight: bold; font-size: 16px; }
         .user-input { border: none; padding: 10px; font-size: 20px; width: 70px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
-        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 18px; color: #555; letter-spacing: 2px; }
+        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 18px; color: #555; }
         .refresh-btn { border: none; background: none; font-size: 24px; cursor: pointer; padding: 0 15px; }
 
-        /* الأزرار */
+        /* الأزرار السفلية */
         .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn-save { background-color: #28a745; }
         .btn-share { background-color: #007bff; }
 
-        /* الملصق */
+        /* المعاينة */
         .preview-area { margin-top: 25px; display: flex; justify-content: center; }
         #sticker-box { background-color: white; width: 320px; padding: 25px 15px; text-align: center; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; }
         .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
@@ -61,19 +103,27 @@
 <body>
 
     <div class="container">
-        <h3>نظام الملصقات المباشر</h3>
+        <h3>نظام المسح الشامل</h3>
 
-        <button class="scan-btn" onclick="startCamera()">
-            📷 اضغط هنا لمسح الباركود
-        </button>
-
-        <div id="reader"></div>
-        
-        <div id="tip-msg" class="tip-box">
-            💡 <b>نصيحة ذهبية:</b><br>
-            إذا كان الباركود في الشاشة "واقف" (عمودي)،<br>
-            <b>اقلب جوالك أنت بالعرض</b> ليتم المسح فوراً! 🔄
+        <div id="camera-container">
+            <div id="reader"></div>
+            <div class="scan-overlay">
+                <div class="scan-line"></div>
+            </div>
         </div>
+
+        <div class="camera-controls" id="cam-tools">
+            <button class="icon-btn" id="flashBtn" onclick="toggleFlash()">⚡</button>
+            <div class="zoom-slider-container">
+                <span>➖</span>
+                <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" oninput="applyZoom(this.value)" disabled>
+                <span>➕</span>
+            </div>
+        </div>
+
+        <button class="main-scan-btn" id="startBtn" onclick="startCamera()">
+            📷 تشغيل الكاميرا
+        </button>
 
         <div class="input-group">
             <label>رقم الباركود (IMEI):</label>
@@ -96,7 +146,7 @@
         </div>
 
         <div class="action-buttons">
-            <button class="btn btn-save" onclick="saveImage()">💾 حفظ الصورة</button>
+            <button class="btn btn-save" onclick="saveImage()">💾 حفظ</button>
             <button class="btn btn-share" onclick="shareImage()">📤 مشاركة</button>
         </div>
 
@@ -110,7 +160,7 @@
     </div>
 
     <script>
-        // --- 1. المنطق الأساسي (أرقام وملصقات) ---
+        // --- 1. المنطق الأساسي ---
         let currentRandom = "";
         function generateNewRandom() {
             currentRandom = Math.floor(100000 + Math.random() * 900000).toString();
@@ -130,61 +180,121 @@
             } catch (e) {}
         }
 
-        // --- 2. الكاميرا المباشرة (مبسطة وقوية) ---
-        let html5QrcodeScanner;
+        // --- 2. منطق الكاميرا المتقدم (زوم + فلاش + مستطيل) ---
+        let html5QrCode;
+        let isFlashOn = false;
+        let currentZoom = 1;
+        let trackCapabilities = {}; // لتخزين قدرات الكاميرا (هل تدعم الزوم والفلاش؟)
 
         function startCamera() {
-            const readerDiv = document.getElementById('reader');
-            const tipMsg = document.getElementById('tip-msg');
+            const camContainer = document.getElementById('camera-container');
+            const camTools = document.getElementById('cam-tools');
+            const startBtn = document.getElementById('startBtn');
 
             // إذا كانت الكاميرا تعمل، نغلقها
-            if (readerDiv.style.display === 'block') {
-                if(html5QrcodeScanner) { html5QrcodeScanner.clear(); }
-                readerDiv.style.display = 'none';
-                tipMsg.style.display = 'none';
+            if (camContainer.style.display === 'block') {
+                if(html5QrCode) { 
+                    html5QrCode.stop().then(() => {
+                        html5QrCode.clear();
+                        camContainer.style.display = 'none';
+                        camTools.style.display = 'none';
+                        startBtn.innerText = "📷 تشغيل الكاميرا";
+                        startBtn.style.backgroundColor = "#dc3545";
+                    });
+                }
                 return;
             }
 
-            readerDiv.style.display = 'block';
-            tipMsg.style.display = 'block'; // إظهار النصيحة
+            // تشغيل الكاميرا
+            camContainer.style.display = 'block';
+            startBtn.innerText = "❌ إغلاق الكاميرا";
+            startBtn.style.backgroundColor = "#333";
 
-            // إعدادات الكاميرا
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader", 
-                { 
-                    fps: 15, // سرعة مسح عالية
-                    qrbox: { width: 250, height: 250 }, // مربع كبير لاستيعاب كل الزوايا
-                    aspectRatio: 1.0,
-                    // تفعيل الميزات التجريبية لاستخدام ماسح النظام القوي
-                    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-                },
-                /* verbose= */ false
-            );
+            html5QrCode = new Html5Qrcode("reader");
 
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-        }
+            const config = { 
+                fps: 20, 
+                qrbox: { width: 280, height: 80 }, // المستطيل البرمجي (يطابق المستطيل الأحمر)
+                aspectRatio: 1.0,
+                experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+            };
 
-        function onScanSuccess(decodedText, decodedResult) {
-            // عند النجاح
-            document.getElementById('barcodeInput').value = decodedText;
-            updateLabel();
-            
-            // إغلاق الكاميرا وتنبيه المستخدم
-            html5QrcodeScanner.clear().then(() => {
-                document.getElementById('reader').style.display = 'none';
-                document.getElementById('tip-msg').style.display = 'none';
-                // هزاز بسيط لتأكيد القراءة (على الأندرويد)
-                if (navigator.vibrate) navigator.vibrate(200);
+            // تشغيل الكاميرا الخلفية مباشرة
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                onScanSuccess
+            ).then(() => {
+                // بعد التشغيل بنجاح، نفعل أدوات التحكم
+                enableCameraControls();
+            }).catch(err => {
+                alert("تعذر تشغيل الكاميرا: " + err);
             });
         }
 
-        function onScanFailure(error) {
-            // تجاهل الأخطاء المتكررة أثناء البحث
+        function onScanSuccess(decodedText) {
+            document.getElementById('barcodeInput').value = decodedText;
+            updateLabel();
+            // إغلاق الكاميرا تلقائياً بعد النجاح
+            startCamera(); // هذا سيغلقها لأنها مفتوحة
+            if (navigator.vibrate) navigator.vibrate(200);
         }
 
-        // --- 3. الحفظ والمشاركة ---
-        const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
+        // --- تفعيل الفلاش والزوم ---
+        function enableCameraControls() {
+            // الحصول على قدرات الكاميرا الحالية
+            /* ملاحظة: هذه الخاصية تعمل على معظم متصفحات أندرويد الحديثة */
+            try {
+                const track = html5QrCode.getRunningTrackCameraCapabilities(); // دالة مساعدة في المكتبة
+                // أو الطريقة اليدوية إذا لم تتوفر الدالة:
+                // const videoTrack = html5QrCode.html5QrCodeScanner.html5QrCode.scanner.html5QrCode.element.srcObject.getVideoTracks()[0];
+                
+                // سنستخدم الواجهة المباشرة للمكتبة للتطبيق
+                // للأسف المكتبة لا تعطي الوصول المباشر للـ Track بسهولة، لذا سنحاول تطبيق القيود مباشرة
+                
+                document.getElementById('cam-tools').style.display = 'flex';
+                
+                // تفعيل سلايدر الزوم
+                const zoomInput = document.getElementById('zoomSlider');
+                zoomInput.disabled = false;
+                
+            } catch (e) {
+                console.log("Controls setup error:", e);
+                // إظهار الأدوات على أي حال للمحاولة
+                document.getElementById('cam-tools').style.display = 'flex';
+                document.getElementById('zoomSlider').disabled = false;
+            }
+        }
 
+        function toggleFlash() {
+            if (!html5QrCode) return;
+            
+            isFlashOn = !isFlashOn;
+            const btn = document.getElementById('flashBtn');
+            
+            html5QrCode.applyVideoConstraints({
+                advanced: [{ torch: isFlashOn }]
+            }).then(() => {
+                if(isFlashOn) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }).catch(err => {
+                alert("الفلاش غير مدعوم في هذا الجهاز/المتصفح");
+                isFlashOn = !isFlashOn; // تراجع
+            });
+        }
+
+        function applyZoom(val) {
+            if (!html5QrCode) return;
+            
+            html5QrCode.applyVideoConstraints({
+                advanced: [{ zoom: parseFloat(val) }]
+            }).catch(err => {
+                console.log("Zoom not supported", err);
+            });
+        }
+
+        // --- الحفظ والمشاركة ---
+        const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
         function saveImage() {
             const el = document.getElementById("sticker-box");
             const border = el.style.border; el.style.border = "none";
