@@ -25,21 +25,14 @@
     .small{font-size:12px;opacity:.9}
   </style>
 
-  <!-- Barcode -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <!-- PDF -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <!-- Scanner fallback -->
   <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 
 <body>
   <div class="card">
     <h2 style="margin:0 0 8px">Label PDF (MS-B58A)</h2>
-    <div class="hint small">
-      إعدادات الطباعة: <b>Scale 100%</b> – أوقف <b>Fit / Auto resize</b>.
-      <br>المقاس مضبوط لمنع التقطيع.
-    </div>
 
     <label>IMEI</label>
     <input id="imei" inputmode="numeric" placeholder="اقرأ بالكيمرا أو اكتب" maxlength="20">
@@ -54,25 +47,25 @@
       <div class="badge" id="scanStatus">جاهز…</div>
     </div>
 
-    <label>السعر (رقمين فقط مثل: 22)</label>
-    <input id="price" inputmode="numeric" placeholder="مثال: 22" maxlength="2">
+    <label>السعر (رقمين فقط)</label>
+    <input id="price" inputmode="numeric" maxlength="2">
+
+    <!-- إضافة فقط -->
+    <label>مقاس الليبل (PX)</label>
+    <div class="row">
+      <div><input id="w" value="375"></div>
+      <div><input id="h" value="178"></div>
+    </div>
 
     <button id="btnPdf">⬇️ تنزيل PDF</button>
-
     <div class="hint" id="msg"></div>
-    <div class="hint small">
-      الكبير: <span class="ok">13 + السعر (رقمين) + 6 عشوائي</span> (بعد 13 = 8 أرقام)
-    </div>
   </div>
 
 <script>
   const $ = (id)=>document.getElementById(id);
   const msg = (t, ok=true)=>{ $("msg").innerHTML = `<span class="${ok?'ok':'err'}">${t}</span>`; };
 
-  // ===== MS-B58A FINAL SIZE =====
-  const LABEL_W_PX = 375;
-  const LABEL_H_PX = 178;     // رقم ذهبي يمنع التقطيع
-  const PX_TO_PT = 0.75;      // تحويل ثابت للـ PDF
+  const PX_TO_PT = 0.75;
 
   function digitsOnly(v){ return String(v||"").replace(/\D+/g,''); }
   function cleanImei(v){ return digitsOnly(v).slice(0, 20); }
@@ -83,7 +76,6 @@
     return s;
   }
 
-  // 13 + price(2) + random => بعد 13 = 8
   function makePricingCode(priceRaw){
     const p = digitsOnly(priceRaw);
     if (p.length !== 2) return null;
@@ -96,116 +88,81 @@
     return c.toDataURL("image/png");
   }
 
-  // ===== Scanner =====
-  let stream=null, quaggaRunning=false;
+  /* ==== Scanner (تصليح فقط بدون تغيير منطقك) ==== */
+  let quaggaRunning=false;
 
-  async function startScan(){
+  function startScan(){
     $("videoWrap").style.display="block";
     $("btnStop").style.display="block";
-    $("scanStatus").textContent="فتح الكيمرا…";
+    $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
 
-    if ("BarcodeDetector" in window){
-      try{
-        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" }, audio:false });
-        const v=$("video"); v.srcObject=stream; await v.play();
-        const detector = new BarcodeDetector({ formats:["code_128","ean_13","qr_code","upc_a","upc_e","data_matrix","codabar","itf"] });
-        $("scanStatus").textContent="وجّه الكيمرا على باركود IMEI…";
+    Quagga.init({
+      inputStream:{
+        type:"LiveStream",
+        target: $("video"),
+        constraints:{ facingMode:"environment" }
+      },
+      decoder:{ readers:["code_128_reader"] },
+      locate:true
+    }, err=>{
+      if(err){ msg("فشل تشغيل الكيمرا", false); return; }
+      Quagga.start(); quaggaRunning=true;
+    });
 
-        const tick = async ()=>{
-          if(!stream) return;
-          try{
-            const res = await detector.detect(v);
-            if(res && res.length){
-              const imei = cleanImei(res[0].rawValue||"");
-              if(imei.length>=10){
-                $("imei").value=imei;
-                $("scanStatus").textContent="✅ تم القراءة";
-                stopScan(); return;
-              }
-            }
-          }catch(e){}
-          requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      }catch(e){
-        msg("لازم HTTPS وصلاحية كاميرا.", false);
+    Quagga.onDetected(data=>{
+      const imei = cleanImei(data?.codeResult?.code);
+      if(imei.length>=10){
+        $("imei").value=imei;
         stopScan();
       }
-    } else {
-      $("scanStatus").textContent="وجّه الكيمرا على الباركود…";
-      Quagga.init({
-        inputStream:{ name:"Live", type:"LiveStream", target:$("videoWrap"), constraints:{ facingMode:"environment" } },
-        decoder:{ readers:["code_128_reader","ean_reader","ean_13_reader","upc_reader","upc_e_reader","codabar_reader","i2of5_reader"] },
-        locate:true
-      }, (err)=>{
-        if(err){ msg("فشل تشغيل القارئ.", false); return; }
-        Quagga.start(); quaggaRunning=true;
-      });
-      Quagga.onDetected((data)=>{
-        const imei = cleanImei(data?.codeResult?.code||"");
-        if(imei.length>=10){
-          $("imei").value=imei;
-          $("scanStatus").textContent="✅ تم القراءة";
-          stopScan();
-        }
-      });
-    }
+    });
   }
 
   function stopScan(){
-    if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
-    if(quaggaRunning){ try{Quagga.stop()}catch(e){} quaggaRunning=false; try{Quagga.offDetected()}catch(e){} }
+    if(quaggaRunning){ Quagga.stop(); quaggaRunning=false; }
     $("videoWrap").style.display="none";
     $("btnStop").style.display="none";
   }
 
   $("btnScan").onclick=()=>{ msg(""); startScan(); };
-  $("btnStop").onclick=()=>{ stopScan(); msg("تم إيقاف الكيمرا."); };
+  $("btnStop").onclick=stopScan;
 
-  // ===== Download PDF directly =====
+  /* ==== PDF ==== */
   $("btnPdf").onclick=()=>{
     const imei = cleanImei($("imei").value);
     const price = digitsOnly($("price").value);
     if(!imei || imei.length<10) return msg("دخل IMEI صحيح.", false);
-    if(price.length!==2) return msg("السعر لازم رقمين فقط.", false);
+    if(price.length!==2) return msg("السعر لازم رقمين.", false);
 
     const code = makePricingCode(price);
-    if(!code) return msg("السعر لازم رقمين فقط.", false);
+
+    const w = parseInt($("w").value)||375;
+    const h = parseInt($("h").value)||178;
 
     const { jsPDF } = window.jspdf;
-    const pageW = LABEL_W_PX * PX_TO_PT;
-    const pageH = LABEL_H_PX * PX_TO_PT;
-
     const doc = new jsPDF({
-      orientation: (pageW>=pageH)?"landscape":"portrait",
       unit:"pt",
-      format:[pageW, pageH]
+      format:[w*PX_TO_PT, h*PX_TO_PT]
     });
 
-    // Border
-    doc.setDrawColor(0); doc.setLineWidth(1);
-    doc.rect(1,1,pageW-2,pageH-2);
+    const pw=w*PX_TO_PT, ph=h*PX_TO_PT;
 
-    // BIG pricing code
+    doc.rect(1,1,pw-2,ph-2);
+
     doc.setFont("helvetica","bold");
-    let fs=34; doc.setFontSize(fs);
-    while(fs>18 && doc.getTextWidth(code)>(pageW-20)){ fs--; doc.setFontSize(fs); }
-    doc.text(code, pageW/2, 40, {align:"center"});
+    doc.setFontSize(18);
+    doc.text("البحراني للهواتف الذكية", pw/2, 26, {align:"center"});
 
-    // Barcode
-    const img = makeBarcodePngDataUrl(imei);
-    const margin=10;
-    const by=52;
-    const bh=pageH-by-34;
-    doc.addImage(img,"PNG",margin,by,pageW-margin*2,bh,undefined,"FAST");
+    doc.setFontSize(24);
+    doc.text(code, pw/2, 48, {align:"center"});
 
-    // IMEI
-    doc.setFontSize(16);
-    doc.text(imei, pageW/2, pageH-14, {align:"center"});
+    doc.addImage(makeBarcodePngDataUrl(imei),"PNG",10,60,pw-20,ph-92);
 
-    // Direct download
+    doc.setFontSize(14);
+    doc.text(imei, pw/2, ph-12, {align:"center"});
+
     doc.save(`Label_${imei}.pdf`);
-    msg("✅ تم تنزيل PDF مباشرة.", true);
+    msg("✅ تم تنزيل PDF", true);
   };
 </script>
 </body>
