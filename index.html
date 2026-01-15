@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام القص والمسح الذكي</title>
+    <title>الماسح الذكي (تدوير تلقائي)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -13,129 +13,57 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            margin: 0;
-            color: #333;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
+        .container { background: white; padding: 15px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h3 { text-align: center; margin: 0 0 15px 0; color: #2c3e50; }
 
-        .container {
-            background: white;
-            padding: 20px;
-            border-radius: 16px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-        }
-
-        h3 { text-align: center; margin: 0 0 20px 0; color: #2c3e50; }
-
-        /* منطقة القص (مخفية افتراضياً) */
-        #cropper-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.9);
-            z-index: 999;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .img-container {
-            max-width: 90%;
-            max-height: 70%;
-            overflow: hidden;
-            background: #000;
-        }
+        /* منطقة القص */
+        #cropper-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
+        .img-container { max-width: 90%; max-height: 60%; overflow: hidden; background: #000; margin-bottom: 20px; border: 2px solid #fff; }
         #image-to-crop { max-width: 100%; display: block; }
         
-        .crop-controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 15px;
-            width: 100%;
-            justify-content: center;
-        }
-
-        /* أزرار التحكم */
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: bold;
-            cursor: pointer;
-            color: white;
-            font-size: 16px;
-            flex: 1;
-            max-width: 150px;
-        }
+        .crop-controls { display: flex; gap: 10px; width: 100%; justify-content: center; }
+        .btn { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; font-size: 16px; flex: 1; max-width: 140px; }
         .btn-confirm { background-color: #28a745; }
         .btn-cancel { background-color: #dc3545; }
-        .btn-upload { background-color: #007bff; display: flex; align-items: center; justify-content: center; gap: 8px;}
-        .btn-cam { background-color: #6c757d; }
-
-        /* منطقة الكاميرا المباشرة */
-        #reader { width: 100%; display: none; margin-bottom: 15px; border-radius: 8px; border: 2px solid #333; }
-
-        .scan-options { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-blue { background-color: #007bff; }
+        
+        /* الكاميرا المباشرة */
+        #reader { width: 100%; display: none; margin-bottom: 10px; border-radius: 8px; border: 2px solid #333; background: #000; }
 
         /* الحقول */
-        .input-group { margin-bottom: 15px; text-align: right; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
-        
-        input.normal-input {
-            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px;
-            text-align: center; font-size: 16px; box-sizing: border-box;
-        }
+        .input-group { margin-bottom: 12px; text-align: right; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
+        input.normal-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; text-align: center; font-size: 16px; box-sizing: border-box; }
 
         /* الرقم الخاص */
-        .smart-input-container {
-            display: flex; align-items: center; border: 2px solid #007bff;
-            border-radius: 8px; background-color: #f8f9fa; overflow: hidden;
-        }
-        .fixed-part { background-color: #007bff; color: white; padding: 12px; font-weight: bold; }
-        .user-input {
-            border: none; padding: 10px; font-size: 18px; width: 60px;
-            text-align: center; font-weight: bold; outline: none; background: #fff; color: #d63384;
-        }
+        .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 6px; background-color: #f8f9fa; overflow: hidden; }
+        .fixed-part { background-color: #007bff; color: white; padding: 10px; font-weight: bold; }
+        .user-input { border: none; padding: 10px; font-size: 18px; width: 60px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
         .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 16px; color: #666; }
         .refresh-btn { border: none; background: none; font-size: 20px; cursor: pointer; padding: 0 10px; }
 
-        /* الملصق */
+        /* المعاينة */
         .preview-area { margin-top: 20px; display: flex; justify-content: center; }
-        #sticker-box {
-            background-color: white; width: 320px; padding: 20px;
-            text-align: center; border: 1px solid #eee;
-            display: flex; flex-direction: column; align-items: center;
-        }
-        .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma, sans-serif;}
+        #sticker-box { background-color: white; width: 320px; padding: 20px; text-align: center; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; }
+        .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
         .top-number { font-size: 32px; font-weight: bold; margin-bottom: 10px; font-family: Arial; }
         svg#barcode { width: 100%; height: auto; display: block; }
         
-        /* رسالة الحالة */
-        #status { text-align: center; margin: 10px 0; font-size: 14px; color: #007bff; font-weight: bold; min-height: 20px;}
-
+        #scan-status { text-align: center; font-weight: bold; margin: 10px 0; min-height: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h3>نظام الملصقات الذكي</h3>
+        <h3>نظام الملصقات والماسح</h3>
 
-        <div class="scan-options">
-            <button class="btn btn-cam" onclick="toggleCamera()">📷 كاميرا مباشر</button>
-            <button class="btn btn-upload" onclick="document.getElementById('fileInput').click()">🖼️ من صورة (قص)</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button class="btn btn-blue" onclick="document.getElementById('fileInput').click()">🖼️ قص ومسح</button>
             <input type="file" id="fileInput" accept="image/*" style="display: none" onchange="loadFile(event)">
         </div>
-
-        <div id="reader"></div>
-        <div id="status"></div>
+        
+        <div id="scan-status"></div>
 
         <div class="input-group">
             <label>رقم الباركود (IMEI):</label>
@@ -157,9 +85,9 @@
             </div>
         </div>
 
-        <div class="scan-options" style="margin-top: 20px;">
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button class="btn btn-confirm" onclick="saveImage()">💾 حفظ</button>
-            <button class="btn btn-upload" style="background:#007bff" onclick="shareImage()">📤 مشاركة</button>
+            <button class="btn btn-blue" onclick="shareImage()">📤 مشاركة</button>
         </div>
 
         <div class="preview-area">
@@ -172,18 +100,21 @@
     </div>
 
     <div id="cropper-modal">
-        <h3 style="color: white;">حدد الباركود فقط</h3>
+        <h3 style="color: white; margin-bottom: 10px;">حدد الباركود (حتى لو طولي)</h3>
         <div class="img-container">
             <img id="image-to-crop" src="">
         </div>
         <div class="crop-controls">
-            <button class="btn btn-confirm" onclick="cropAndScan()">✂️ قص ومسح</button>
-            <button class="btn btn-cancel" onclick="closeCropper()">❌ إلغاء</button>
+            <button class="btn btn-confirm" id="cropBtn" onclick="processCrop()">✂️ مسح الآن</button>
+            <button class="btn btn-cancel" onclick="closeCropper()">إلغاء</button>
         </div>
+        <p style="color: #ddd; font-size: 12px; margin-top: 10px;">سيحاول النظام تدوير الصورة تلقائياً</p>
     </div>
 
+    <div id="reader" style="display:none;"></div>
+
     <script>
-        // --- 1. إعدادات الملصق وتوليد الأرقام ---
+        // --- إعدادات الباركود والملصق ---
         let currentRandom = "";
         function generateNewRandom() {
             currentRandom = Math.floor(100000 + Math.random() * 900000).toString();
@@ -196,7 +127,6 @@
             let userVal = document.getElementById('userPart').value;
             if(currentRandom === "") { generateNewRandom(); return; }
             document.getElementById('fullNumTxt').innerText = "13" + userVal + currentRandom;
-            
             try {
                 JsBarcode("#barcode", document.getElementById('barcodeInput').value, {
                     format: "CODE128", lineColor: "#000", width: 2.3, height: 60, displayValue: true, fontSize: 18, margin: 0
@@ -204,10 +134,11 @@
             } catch (e) {}
         }
 
-        // --- 2. منطق القص (Cropping) ---
+        // --- منطق القص والمسح الذكي ---
         let cropper;
         const modal = document.getElementById('cropper-modal');
         const imageElement = document.getElementById('image-to-crop');
+        const statusDiv = document.getElementById('scan-status');
 
         function loadFile(event) {
             const file = event.target.files[0];
@@ -215,16 +146,12 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     imageElement.src = e.target.result;
-                    modal.style.display = 'flex'; // إظهار النافذة
+                    modal.style.display = 'flex';
                     if (cropper) { cropper.destroy(); }
-                    cropper = new Cropper(imageElement, {
-                        viewMode: 1,
-                        autoCropArea: 0.5, // تحديد مبدئي
-                    });
+                    cropper = new Cropper(imageElement, { viewMode: 1, autoCropArea: 0.6 });
                 };
                 reader.readAsDataURL(file);
             }
-            // إعادة تعيين الحقل ليمكن اختيار نفس الصورة مجدداً
             event.target.value = '';
         }
 
@@ -233,69 +160,66 @@
             if (cropper) { cropper.destroy(); cropper = null; }
         }
 
-        function cropAndScan() {
+        async function processCrop() {
             if (!cropper) return;
             
-            document.getElementById('status').innerText = "جاري المعالجة والمسح...";
+            const btn = document.getElementById('cropBtn');
+            btn.innerText = "جاري التحليل...";
             
             // 1. الحصول على الصورة المقصوصة
             const canvas = cropper.getCroppedCanvas();
             
-            // 2. معالجة الصورة (زيادة التباين) لحل مشكلة اللمعة
-            // ننشئ canvas جديد للمعالجة
-            const processedCanvas = document.createElement('canvas');
-            const ctx = processedCanvas.getContext('2d');
-            processedCanvas.width = canvas.width;
-            processedCanvas.height = canvas.height;
+            // 2. التحقق مما إذا كانت طولية (Vertical) وتدويرها
+            // الباركود العمودي يجب تدويره ليصبح أفقياً للقراءة
+            let finalCanvas = canvas;
             
-            // تطبيق فلتر لزيادة التباين وتحويل لرمادي
-            ctx.filter = 'grayscale(1) contrast(200%) brightness(100%)';
-            ctx.drawImage(canvas, 0, 0);
+            if (canvas.height > canvas.width) {
+                // إنشاء كانفاس جديد للتدوير
+                finalCanvas = document.createElement('canvas');
+                finalCanvas.width = canvas.height;
+                finalCanvas.height = canvas.width;
+                const ctx = finalCanvas.getContext('2d');
+                
+                // تدوير 90 درجة
+                ctx.translate(finalCanvas.width / 2, finalCanvas.height / 2);
+                ctx.rotate(90 * Math.PI / 180);
+                ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+            }
 
-            // 3. تحويلها لملف ليقرأها الماسح
+            // 3. تطبيق فلتر التباين (Contrast) لإزالة اللمعة
+            const processedCanvas = document.createElement('canvas');
+            processedCanvas.width = finalCanvas.width;
+            processedCanvas.height = finalCanvas.height;
+            const pCtx = processedCanvas.getContext('2d');
+            pCtx.filter = 'grayscale(100%) contrast(200%)';
+            pCtx.drawImage(finalCanvas, 0, 0);
+
+            // 4. تحويل لملف ومسح
             processedCanvas.toBlob((blob) => {
-                const file = new File([blob], "cropped.jpg", { type: "image/jpeg" });
-                scanProcessedFile(file);
-                closeCropper();
-            }, 'image/jpeg', 0.95);
+                const file = new File([blob], "scan_target.jpg", { type: "image/jpeg" });
+                attemptScan(file);
+            }, 'image/jpeg', 1.0);
         }
 
-        function scanProcessedFile(file) {
+        function attemptScan(file) {
             const html5QrCode = new Html5Qrcode("reader");
+            
             html5QrCode.scanFileV2(file, true)
             .then(decodedText => {
                 document.getElementById('barcodeInput').value = decodedText;
                 updateLabel();
-                document.getElementById('status').innerText = "✅ تم القراءة بنجاح!";
-                document.getElementById('status').style.color = "green";
+                statusDiv.innerText = "✅ تم القراءة بنجاح!";
+                statusDiv.style.color = "green";
+                closeCropper();
             })
             .catch(err => {
-                console.log(err);
-                document.getElementById('status').innerText = "❌ لم يتم العثور على باركود. حاول التحديد بدقة أكبر.";
-                document.getElementById('status').style.color = "red";
+                statusDiv.innerText = "❌ فشل. جرب تحديد الباركود فقط بدون حواف.";
+                statusDiv.style.color = "red";
+                document.getElementById('cropBtn').innerText = "حاول مجدداً";
             });
         }
 
-        // --- 3. الكاميرا المباشرة ---
-        let html5QrcodeScanner;
-        function toggleCamera() {
-            const reader = document.getElementById('reader');
-            if (reader.style.display === 'block') {
-                if (html5QrcodeScanner) { html5QrcodeScanner.clear(); }
-                reader.style.display = 'none';
-                return;
-            }
-            reader.style.display = 'block';
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            html5QrcodeScanner.render((decodedText) => {
-                document.getElementById('barcodeInput').value = decodedText;
-                updateLabel();
-                html5QrcodeScanner.clear();
-                reader.style.display = 'none';
-            });
-        }
-
-        // --- 4. الحفظ والمشاركة ---
+        // --- الحفظ والمشاركة ---
         const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
         function saveImage() {
             const el = document.getElementById("sticker-box");
