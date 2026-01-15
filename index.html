@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الماسح الاحترافي (فلاش + زوم)</title>
+    <title>ماسح IMEI الذكي (فلتر دقيق)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -14,119 +14,91 @@
         .container { background: white; padding: 15px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
         h3 { text-align: center; margin: 0 0 15px 0; color: #2c3e50; }
 
-        /* --- منطقة الكاميرا المخصصة --- */
+        /* منطقة الكاميرا */
         #camera-container {
-            position: relative;
-            width: 100%;
-            height: 300px;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 15px;
-            display: none; /* مخفي حتى التشغيل */
+            position: relative; width: 100%; height: 280px; background: #000;
+            border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none;
         }
-        
         #reader { width: 100%; height: 100%; object-fit: cover; }
 
-        /* المستطيل الأحمر (منطقة التركيز) */
+        /* المستطيل الدليل */
         .scan-overlay {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%; /* عريض */
-            height: 80px; /* قصير */
-            border: 3px solid rgba(255, 0, 0, 0.7);
-            box-shadow: 0 0 0 1000px rgba(0,0,0,0.5); /* تعتيم حول المستطيل */
-            border-radius: 5px;
-            z-index: 10;
-            pointer-events: none;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 85%; height: 70px; /* مستطيل عريض جداً ومناسب للـ IMEI */
+            border: 2px solid rgba(0, 255, 0, 0.8); /* أخضر للتركيز */
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.6);
+            border-radius: 4px; z-index: 10; pointer-events: none;
         }
-        /* خط المسح المتحرك */
-        .scan-line {
-            width: 100%; height: 2px; background: red;
-            position: absolute; top: 0;
-            animation: scanAnim 2s infinite linear;
-        }
+        .scan-line { width: 100%; height: 2px; background: #0f0; position: absolute; top: 0; animation: scanAnim 2s infinite linear; }
         @keyframes scanAnim { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
 
-        /* --- أدوات التحكم بالكاميرا (فلاش وزوم) --- */
-        .camera-controls {
-            display: flex; gap: 10px; align-items: center; justify-content: center;
-            background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;
-            display: none; /* تظهر عند فتح الكاميرا */
+        /* رسالة الحالة فوق الكاميرا */
+        #cam-feedback {
+            position: absolute; bottom: 10px; left: 0; right: 0;
+            text-align: center; color: white; font-weight: bold; font-size: 14px;
+            text-shadow: 1px 1px 2px black; z-index: 20;
         }
-        .icon-btn {
-            background: white; border: 1px solid #ccc; border-radius: 50%;
-            width: 40px; height: 40px; font-size: 20px; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .icon-btn.active { background-color: #ffc107; border-color: #ffc107; color: #000; }
-        
-        /* شريط الزوم */
+
+        /* أدوات التحكم */
+        .camera-controls { display: flex; gap: 10px; align-items: center; justify-content: center; background: #f1f3f5; padding: 8px; border-radius: 8px; margin-bottom: 10px; display: none; }
+        .icon-btn { background: white; border: 1px solid #ccc; border-radius: 50%; width: 35px; height: 35px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .icon-btn.active { background-color: #ffc107; border-color: #ffc107; }
         .zoom-slider-container { flex-grow: 1; display: flex; align-items: center; gap: 5px; }
         input[type=range] { width: 100%; }
 
-        /* زر التشغيل الرئيسي */
+        /* زر التشغيل */
         .main-scan-btn {
-            width: 100%; padding: 15px; background-color: #dc3545; color: white;
-            border: none; border-radius: 10px; font-size: 18px; font-weight: bold;
-            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
-            margin-bottom: 20px;
+            width: 100%; padding: 12px; background-color: #dc3545; color: white;
+            border: none; border-radius: 10px; font-size: 16px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px;
         }
 
         /* الحقول */
-        .input-group { margin-bottom: 12px; text-align: right; }
-        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
-        input.normal-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; box-sizing: border-box; }
+        .input-group { margin-bottom: 10px; text-align: right; }
+        label { font-weight: bold; display: block; margin-bottom: 4px; font-size: 13px; }
+        input.normal-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; text-align: center; font-size: 16px; font-weight: bold; box-sizing: border-box; }
 
-        /* الرقم الخاص */
         .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 8px; background-color: #f8f9fa; overflow: hidden; }
-        .fixed-part { background-color: #007bff; color: white; padding: 12px; font-weight: bold; font-size: 16px; }
-        .user-input { border: none; padding: 10px; font-size: 20px; width: 70px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
-        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 18px; color: #555; }
-        .refresh-btn { border: none; background: none; font-size: 24px; cursor: pointer; padding: 0 15px; }
+        .fixed-part { background-color: #007bff; color: white; padding: 10px; font-weight: bold; font-size: 16px; }
+        .user-input { border: none; padding: 8px; font-size: 18px; width: 60px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
+        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 16px; color: #555; }
+        .refresh-btn { border: none; background: none; font-size: 20px; cursor: pointer; padding: 0 10px; }
 
-        /* الأزرار السفلية */
         .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
         .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
         .btn-save { background-color: #28a745; }
         .btn-share { background-color: #007bff; }
 
-        /* المعاينة */
-        .preview-area { margin-top: 25px; display: flex; justify-content: center; }
-        #sticker-box { background-color: white; width: 320px; padding: 25px 15px; text-align: center; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; }
-        .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
-        .top-number { font-size: 34px; font-weight: bold; margin-bottom: 10px; font-family: Arial; }
+        .preview-area { margin-top: 20px; display: flex; justify-content: center; }
+        #sticker-box { background-color: white; width: 320px; padding: 20px 10px; text-align: center; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; }
+        .shop-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
+        .top-number { font-size: 30px; font-weight: bold; margin-bottom: 8px; font-family: Arial; }
         svg#barcode { width: 100%; height: auto; display: block; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h3>نظام المسح الشامل</h3>
+        <h3>نظام فلتر الـ IMEI الذكي</h3>
 
         <div id="camera-container">
             <div id="reader"></div>
-            <div class="scan-overlay">
-                <div class="scan-line"></div>
-            </div>
+            <div class="scan-overlay"><div class="scan-line"></div></div>
+            <div id="cam-feedback">وجّه الكاميرا نحو الباركود</div>
         </div>
 
         <div class="camera-controls" id="cam-tools">
             <button class="icon-btn" id="flashBtn" onclick="toggleFlash()">⚡</button>
             <div class="zoom-slider-container">
-                <span>➖</span>
+                <span>🔍</span>
                 <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" oninput="applyZoom(this.value)" disabled>
-                <span>➕</span>
             </div>
         </div>
 
-        <button class="main-scan-btn" id="startBtn" onclick="startCamera()">
-            📷 تشغيل الكاميرا
-        </button>
+        <button class="main-scan-btn" id="startBtn" onclick="startCamera()">📷 تشغيل الكاميرا</button>
 
         <div class="input-group">
-            <label>رقم الباركود (IMEI):</label>
+            <label>رقم الباركود (IMEI فقط):</label>
             <input class="normal-input" type="text" id="barcodeInput" value="354645091451710" oninput="updateLabel()">
         </div>
 
@@ -180,117 +152,106 @@
             } catch (e) {}
         }
 
-        // --- 2. منطق الكاميرا المتقدم (زوم + فلاش + مستطيل) ---
+        // --- 2. الكاميرا المتقدمة مع الفلتر الذكي ---
         let html5QrCode;
         let isFlashOn = false;
-        let currentZoom = 1;
-        let trackCapabilities = {}; // لتخزين قدرات الكاميرا (هل تدعم الزوم والفلاش؟)
 
         function startCamera() {
             const camContainer = document.getElementById('camera-container');
-            const camTools = document.getElementById('cam-tools');
             const startBtn = document.getElementById('startBtn');
+            const feedback = document.getElementById('cam-feedback');
 
-            // إذا كانت الكاميرا تعمل، نغلقها
             if (camContainer.style.display === 'block') {
                 if(html5QrCode) { 
                     html5QrCode.stop().then(() => {
                         html5QrCode.clear();
                         camContainer.style.display = 'none';
-                        camTools.style.display = 'none';
+                        document.getElementById('cam-tools').style.display = 'none';
                         startBtn.innerText = "📷 تشغيل الكاميرا";
                         startBtn.style.backgroundColor = "#dc3545";
+                        feedback.innerText = "وجّه الكاميرا نحو الباركود";
                     });
                 }
                 return;
             }
 
-            // تشغيل الكاميرا
             camContainer.style.display = 'block';
-            startBtn.innerText = "❌ إغلاق الكاميرا";
+            startBtn.innerText = "❌ إغلاق";
             startBtn.style.backgroundColor = "#333";
 
             html5QrCode = new Html5Qrcode("reader");
 
             const config = { 
                 fps: 20, 
-                qrbox: { width: 280, height: 80 }, // المستطيل البرمجي (يطابق المستطيل الأحمر)
+                // جعلنا منطقة المسح أضيق لتركز على سطر واحد فقط
+                qrbox: { width: 280, height: 60 }, 
                 aspectRatio: 1.0,
                 experimentalFeatures: { useBarCodeDetectorIfSupported: true }
             };
 
-            // تشغيل الكاميرا الخلفية مباشرة
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                onScanSuccess
-            ).then(() => {
-                // بعد التشغيل بنجاح، نفعل أدوات التحكم
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
+            .then(() => {
                 enableCameraControls();
-            }).catch(err => {
-                alert("تعذر تشغيل الكاميرا: " + err);
             });
         }
 
         function onScanSuccess(decodedText) {
+            const feedback = document.getElementById('cam-feedback');
+
+            // --- الفلتر الذكي ---
+            
+            // 1. فحص هل النص يحتوي على حروف؟ (IMEI أرقام فقط)
+            // إذا كان يحتوي على حروف (مثل R28...) نرفضه
+            if (/[a-zA-Z]/.test(decodedText)) {
+                feedback.innerText = "⚠️ تم تجاهل السيريال (SN).. ابحث عن IMEI";
+                feedback.style.color = "orange";
+                return; // لا تكمل الكود، استمر في المسح
+            }
+
+            // 2. فحص الطول (IMEI عادة 15 رقم)
+            // نتجاهل الأرقام القصيرة جداً
+            if (decodedText.length < 14) {
+                feedback.innerText = "⚠️ الرقم قصير جداً.. حاول مجدداً";
+                return;
+            }
+
+            // --- إذا وصل هنا، فهو IMEI صحيح ---
+            feedback.innerText = "✅ تم التقاط IMEI بنجاح!";
+            feedback.style.color = "#0f0";
+            
             document.getElementById('barcodeInput').value = decodedText;
             updateLabel();
-            // إغلاق الكاميرا تلقائياً بعد النجاح
-            startCamera(); // هذا سيغلقها لأنها مفتوحة
+            
+            // اهتزاز للنجاح
             if (navigator.vibrate) navigator.vibrate(200);
+
+            // إغلاق الكاميرا
+            setTimeout(() => {
+                startCamera(); // دالة الإغلاق
+            }, 500); 
         }
 
-        // --- تفعيل الفلاش والزوم ---
+        // --- الفلاش والزوم ---
         function enableCameraControls() {
-            // الحصول على قدرات الكاميرا الحالية
-            /* ملاحظة: هذه الخاصية تعمل على معظم متصفحات أندرويد الحديثة */
             try {
-                const track = html5QrCode.getRunningTrackCameraCapabilities(); // دالة مساعدة في المكتبة
-                // أو الطريقة اليدوية إذا لم تتوفر الدالة:
-                // const videoTrack = html5QrCode.html5QrCodeScanner.html5QrCode.scanner.html5QrCode.element.srcObject.getVideoTracks()[0];
-                
-                // سنستخدم الواجهة المباشرة للمكتبة للتطبيق
-                // للأسف المكتبة لا تعطي الوصول المباشر للـ Track بسهولة، لذا سنحاول تطبيق القيود مباشرة
-                
-                document.getElementById('cam-tools').style.display = 'flex';
-                
-                // تفعيل سلايدر الزوم
-                const zoomInput = document.getElementById('zoomSlider');
-                zoomInput.disabled = false;
-                
-            } catch (e) {
-                console.log("Controls setup error:", e);
-                // إظهار الأدوات على أي حال للمحاولة
                 document.getElementById('cam-tools').style.display = 'flex';
                 document.getElementById('zoomSlider').disabled = false;
-            }
+            } catch (e) {}
         }
 
         function toggleFlash() {
             if (!html5QrCode) return;
-            
             isFlashOn = !isFlashOn;
             const btn = document.getElementById('flashBtn');
-            
-            html5QrCode.applyVideoConstraints({
-                advanced: [{ torch: isFlashOn }]
-            }).then(() => {
-                if(isFlashOn) btn.classList.add('active');
-                else btn.classList.remove('active');
-            }).catch(err => {
-                alert("الفلاش غير مدعوم في هذا الجهاز/المتصفح");
-                isFlashOn = !isFlashOn; // تراجع
-            });
+            html5QrCode.applyVideoConstraints({ advanced: [{ torch: isFlashOn }] })
+            .then(() => {
+                if(isFlashOn) btn.classList.add('active'); else btn.classList.remove('active');
+            }).catch(() => { isFlashOn = !isFlashOn; });
         }
 
         function applyZoom(val) {
             if (!html5QrCode) return;
-            
-            html5QrCode.applyVideoConstraints({
-                advanced: [{ zoom: parseFloat(val) }]
-            }).catch(err => {
-                console.log("Zoom not supported", err);
-            });
+            html5QrCode.applyVideoConstraints({ advanced: [{ zoom: parseFloat(val) }] });
         }
 
         // --- الحفظ والمشاركة ---
@@ -306,7 +267,6 @@
                 el.style.border = border;
             });
         }
-
         function shareImage() {
             const el = document.getElementById("sticker-box");
             const border = el.style.border; el.style.border = "none";
