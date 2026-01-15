@@ -3,390 +3,376 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قارئ IMEI الاحترافي</title>
+    <title>الماسح الذكي (قص + معالجة)</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <link  href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f6f8;
+            background-color: #eef2f5;
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 15px;
+            padding: 10px;
             margin: 0;
             color: #333;
         }
 
         .container {
             background: white;
-            padding: 20px;
-            border-radius: 16px;
+            padding: 15px;
+            border-radius: 12px;
             width: 100%;
             max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
 
-        h3 { text-align: center; margin-top: 0; color: #2c3e50; }
+        h3 { text-align: center; margin: 0 0 15px 0; color: #2c3e50; font-size: 18px; }
 
-        /* منطقة الكاميرا المخصصة */
-        #reader {
+        /* منطقة القص */
+        .crop-container {
             width: 100%;
-            border-radius: 12px;
-            overflow: hidden;
-            display: none; /* مخفي افتراضياً */
-            background: #000;
-            margin-bottom: 15px;
+            height: 300px;
+            background: #333;
+            display: none; /* مخفي حتى يتم اختيار صورة */
+            margin-bottom: 10px;
+        }
+        #image-to-crop {
+            max-width: 100%;
+            max-height: 100%;
         }
 
-        .input-group { margin-bottom: 15px; text-align: right; }
-        label { font-weight: bold; display: block; margin-bottom: 8px; font-size: 14px; color: #555; }
-
-        /* أزرار التحكم في المسح */
-        .scan-controls {
+        /* أزرار التحكم */
+        .controls-row {
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
-
-        .scan-btn {
+        .btn {
             flex: 1;
             padding: 12px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             font-weight: bold;
-            font-size: 14px;
             cursor: pointer;
+            color: white;
+            font-size: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 5px;
-            transition: 0.2s;
         }
-        .btn-cam { background-color: #dc3545; color: white; } /* أحمر للكاميرا */
-        .btn-file { background-color: #6c757d; color: white; } /* رمادي للملف */
-        
-        .scan-btn:active { transform: scale(0.98); }
+        .btn-cam { background: #dc3545; }
+        .btn-upload { background: #6c757d; }
+        .btn-process { background: #007bff; display: none; } /* يظهر بعد اختيار الصورة */
+
+        /* المدخلات */
+        .input-group { margin-bottom: 12px; text-align: right; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 13px; }
+        input.normal-input {
+            width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px;
+            text-align: center; font-size: 16px; box-sizing: border-box;
+        }
 
         /* الحقل المركب */
         .smart-input-container {
-            display: flex;
-            align-items: center;
-            border: 2px solid #007bff;
-            border-radius: 8px;
-            background-color: #f8f9fa;
-            overflow: hidden;
+            display: flex; align-items: center; border: 2px solid #007bff;
+            border-radius: 6px; background-color: #f8f9fa; overflow: hidden;
         }
-        .fixed-part {
-            background-color: #007bff;
-            color: white;
-            padding: 12px;
-            font-weight: bold;
-            font-size: 16px;
-        }
+        .fixed-part { background-color: #007bff; color: white; padding: 10px; font-weight: bold; }
         .user-input {
-            border: none;
-            padding: 10px 5px;
-            font-size: 18px;
-            width: 60px;
-            text-align: center;
-            font-weight: bold;
-            outline: none;
-            background: #fff;
-            color: #d63384;
+            border: none; padding: 8px; font-size: 18px; width: 60px;
+            text-align: center; font-weight: bold; outline: none; color: #d63384;
         }
-        .random-part {
-            background-color: #e9ecef;
-            padding: 10px;
-            font-family: monospace;
-            font-size: 16px;
-            color: #666;
-            flex-grow: 1;
-            text-align: center;
-            border-left: 1px solid #ddd;
-        }
-        .refresh-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 20px;
-            padding: 0 10px;
-        }
+        .random-part { flex-grow: 1; text-align: center; color: #666; font-family: monospace; font-size: 16px; }
+        .refresh-btn { border: none; background: none; font-size: 20px; padding: 0 10px; cursor: pointer; }
 
-        /* الحقول العادية */
-        input.normal-input {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-
-        /* أزرار الحفظ */
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
-        button.action-btn {
-            border: none;
-            padding: 14px;
-            border-radius: 8px;
-            font-size: 16px;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-            width: 100%;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .btn-save { background-color: #28a745; }
-        .btn-share { background-color: #007bff; }
+        /* منطقة الكاميرا المباشرة */
+        #reader { width: 100%; display: none; margin-bottom: 10px; border: 2px solid #000; }
 
         /* المعاينة */
-        .preview-area {
-            margin-top: 30px;
-            display: flex;
-            justify-content: center;
-        }
         #sticker-box {
-            background-color: white;
-            width: 320px;
-            padding: 25px 15px;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid #eee;
+            background: white; width: 320px; padding: 20px; margin: 20px auto;
+            text-align: center; border: 1px dashed #ccc;
         }
-        .shop-name {
-            font-family: 'Tahoma', sans-serif;
-            font-size: 22px;
-            font-weight: bold;
-            color: #000;
-            margin-bottom: 5px;
-            line-height: 1.2;
-            white-space: nowrap;
-        }
-        .top-number {
-            font-family: Arial, sans-serif;
-            font-size: 32px;
-            font-weight: bold;
-            color: #000;
-            margin: 5px 0 10px 0;
-            letter-spacing: 1px;
-        }
+        .shop-name { font-size: 20px; font-weight: bold; margin-bottom: 5px; }
+        .top-number { font-size: 30px; font-weight: bold; margin: 5px 0 10px 0; font-family: Arial; }
         svg#barcode { width: 100%; height: auto; display: block; }
-        
-        /* رسالة الحالة */
-        #status-msg {
-            text-align: center;
-            font-size: 12px;
-            margin-bottom: 10px;
-            color: #dc3545;
-            min-height: 18px;
-        }
 
+        /* أزرار الحفظ */
+        .save-btns { display: flex; gap: 10px; margin-top: 10px; }
+        .btn-save { background: #28a745; flex: 1; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; }
+        .btn-share { background: #17a2b8; flex: 1; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; }
+
+        #status-msg { text-align: center; font-size: 12px; color: #d63384; min-height: 20px; margin-bottom: 5px;}
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <h3>نظام الملصقات الذكي</h3>
+<div class="container">
+    <h3>نظام الملصقات (القص + المعالجة)</h3>
 
-        <div id="reader"></div>
-        <div id="status-msg"></div>
+    <div id="status-msg"></div>
 
-        <div class="scan-controls">
-            <button class="scan-btn btn-cam" onclick="startCamera()">📷 مسح مباشر</button>
-            <button class="scan-btn btn-file" onclick="document.getElementById('file-input').click()">📁 من صورة</button>
-            <input type="file" id="file-input" accept="image/*" style="display: none" onchange="scanFromFile(this)">
-        </div>
+    <div id="reader"></div>
 
-        <div class="input-group">
-            <label>رقم الباركود (IMEI):</label>
-            <input class="normal-input" type="text" id="barcodeInput" value="354645091451710" oninput="updateLabel()">
-        </div>
+    <div class="crop-container">
+        <img id="image-to-crop" src="">
+    </div>
 
-        <div class="input-group">
-            <label>اسم المحل:</label>
-            <input class="normal-input" type="text" id="shopInput" value="البحراني للهواتف الذكية" oninput="updateLabel()">
-        </div>
+    <div class="controls-row">
+        <button class="btn btn-cam" onclick="startCamera()">📷 مباشر</button>
+        <button class="btn btn-upload" onclick="document.getElementById('file-input').click()">🖼️ من صورة</button>
+        <input type="file" id="file-input" accept="image/*" style="display: none" onchange="loadFile(event)">
+    </div>
+    
+    <button id="btn-process" class="btn btn-process" onclick="processAndScan()" style="width:100%; margin-bottom:15px;">✂️ قص ومسح الباركود</button>
 
-        <div class="input-group">
-            <label>الرقم الخاص:</label>
-            <div class="smart-input-container">
-                <div class="fixed-part">13</div>
-                <input type="number" id="userPart" class="user-input" placeholder="00" value="60" oninput="updateLabel()">
-                <div class="random-part" id="randomDisplay">------</div>
-                <button class="refresh-btn" onclick="generateNewRandom()">🔄</button>
-            </div>
-        </div>
 
-        <div class="btn-group">
-            <button class="action-btn btn-save" onclick="saveImage()">💾 حفظ</button>
-            <button class="action-btn btn-share" onclick="shareImage()">📤 مشاركة</button>
-        </div>
+    <div class="input-group">
+        <label>رقم IMEI:</label>
+        <input class="normal-input" type="text" id="barcodeInput" value="354645091451710" oninput="updateLabel()">
+    </div>
 
-        <div class="preview-area">
-            <div id="sticker-box">
-                <div class="shop-name" id="shopTxt">البحراني للهواتف الذكية</div>
-                <div class="top-number" id="fullNumTxt">1360843635</div>
-                <svg id="barcode"></svg>
-            </div>
+    <div class="input-group">
+        <label>اسم المحل:</label>
+        <input class="normal-input" type="text" id="shopInput" value="البحراني للهواتف الذكية" oninput="updateLabel()">
+    </div>
+
+    <div class="input-group">
+        <label>الرقم الخاص:</label>
+        <div class="smart-input-container">
+            <div class="fixed-part">13</div>
+            <input type="number" id="userPart" class="user-input" placeholder="00" value="60" oninput="updateLabel()">
+            <div class="random-part" id="randomDisplay">------</div>
+            <button class="refresh-btn" onclick="generateNewRandom()">🔄</button>
         </div>
     </div>
 
-    <script>
-        // 1. إعدادات الباركود والملصق
-        let currentRandom = "";
-        function generateNewRandom() {
-            currentRandom = Math.floor(100000 + Math.random() * 900000).toString();
-            document.getElementById('randomDisplay').innerText = currentRandom;
-            updateLabel();
-        }
+    <div class="save-btns">
+        <button class="btn-save" onclick="saveImage()">💾 حفظ</button>
+        <button class="btn-share" onclick="shareImage()">📤 مشاركة</button>
+    </div>
 
-        function updateLabel() {
-            document.getElementById('shopTxt').innerText = document.getElementById('shopInput').value;
-            let userVal = document.getElementById('userPart').value;
-            if(currentRandom === "") { generateNewRandom(); return; }
-            let fullNumber = "13" + userVal + currentRandom;
-            document.getElementById('fullNumTxt').innerText = fullNumber;
+    <div id="sticker-box">
+        <div class="shop-name" id="shopTxt">البحراني للهواتف الذكية</div>
+        <div class="top-number" id="fullNumTxt">1360843635</div>
+        <svg id="barcode"></svg>
+    </div>
+</div>
+
+<canvas id="processing-canvas" style="display:none;"></canvas>
+
+<script>
+    // ---------------------------------------------------------
+    // 1. منطق القص (Cropper.js)
+    // ---------------------------------------------------------
+    let cropper;
+    const imageElement = document.getElementById('image-to-crop');
+    const cropContainer = document.querySelector('.crop-container');
+    const processBtn = document.getElementById('btn-process');
+    const statusMsg = document.getElementById('status-msg');
+
+    function loadFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // إخفاء الكاميرا إذا كانت مفتوحة
+        stopCamera();
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            imageElement.src = e.target.result;
+            cropContainer.style.display = 'block';
+            processBtn.style.display = 'flex';
             
-            try {
-                JsBarcode("#barcode", document.getElementById('barcodeInput').value, {
-                    format: "CODE128",
-                    lineColor: "#000",
-                    width: 2.3,
-                    height: 60,
-                    displayValue: true,
-                    fontSize: 18,
-                    margin: 0
-                });
-            } catch (e) {}
-        }
-
-        // 2. إعدادات القارئ (الجزء المهم جداً)
-        let html5QrCode;
-        
-        // حصر الأنواع المدعومة بـ Code 128 (IMEI) فقط لتسريع القراءة ومنع الخطأ
-        const formats = [ 
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39 
-        ];
-
-        // --- أ) تشغيل الكاميرا المباشرة ---
-        function startCamera() {
-            const readerDiv = document.getElementById('reader');
-            const statusMsg = document.getElementById('status-msg');
-
-            // إذا كانت الكاميرا تعمل، نغلقها
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    readerDiv.style.display = "none";
-                    html5QrCode.clear();
-                    statusMsg.innerText = "";
-                });
-                return;
-            }
-
-            readerDiv.style.display = "block";
-            statusMsg.innerText = "جاري تشغيل الكاميرا...";
-
-            html5QrCode = new Html5Qrcode("reader");
-
-            const config = { 
-                fps: 15, 
-                qrbox: { width: 300, height: 100 }, // صندوق عريض
-                aspectRatio: 1.0,
-                formatsToSupport: formats, // البحث عن IMEI فقط
-                experimentalFeatures: { useBarCodeDetectorIfSupported: true } // استخدام قارئ النظام
-            };
-
-            html5QrCode.start(
-                { facingMode: "environment" }, 
-                config, 
-                (decodedText) => {
-                    // عند النجاح
-                    document.getElementById('barcodeInput').value = decodedText;
-                    updateLabel();
-                    statusMsg.innerText = "✅ تم القراءة بنجاح!";
-                    // إغلاق الكاميرا تلقائياً
-                    html5QrCode.stop().then(() => {
-                        readerDiv.style.display = "none";
-                        html5QrCode.clear();
-                    });
-                },
-                (errorMessage) => {
-                    // نتجاهل أخطاء البحث المستمر
+            // تهيئة Cropper
+            if (cropper) { cropper.destroy(); }
+            cropper = new Cropper(imageElement, {
+                viewMode: 1,
+                autoCropArea: 0.8, // تحديد تلقائي لـ 80% من الصورة
+                ready() {
+                    statusMsg.innerText = "حدد الباركود بالمربع ثم اضغط 'قص ومسح'";
                 }
-            ).catch(err => {
-                statusMsg.innerText = "خطأ في الكاميرا: " + err;
             });
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // ---------------------------------------------------------
+    // 2. منطق المعالجة والمسح (القلب النابض)
+    // ---------------------------------------------------------
+    async function processAndScan() {
+        if (!cropper) return;
+
+        statusMsg.innerText = "جاري المعالجة والقراءة...";
+
+        // 1. الحصول على الصورة المقصوصة
+        const croppedCanvas = cropper.getCroppedCanvas();
+        if (!croppedCanvas) return;
+
+        // 2. محاولة القراءة الأولى (الصورة المقصوصة الأصلية)
+        let scanned = await scanCanvas(croppedCanvas);
+        
+        if (!scanned) {
+            // 3. إذا فشل، نطبق "فلتر التباين العالي" (High Contrast)
+            statusMsg.innerText = "تعذر القراءة، جاري تطبيق فلتر التباين...";
+            const filteredCanvas = applyHighContrastFilter(croppedCanvas);
+            scanned = await scanCanvas(filteredCanvas);
         }
 
-        // --- ب) المسح من ملف صورة ---
-        function scanFromFile(input) {
-            if (input.files.length === 0) return;
+        if (scanned) {
+            statusMsg.innerText = "✅ تم القراءة بنجاح!";
+            // إخفاء أدوات القص
+            cropContainer.style.display = 'none';
+            processBtn.style.display = 'none';
+            if (cropper) { cropper.destroy(); cropper = null; }
+        } else {
+            statusMsg.innerText = "❌ فشل القراءة. تأكد من تحديد الباركود بدقة.";
+        }
+    }
+
+    // دالة مسح الكانفاس
+    function scanCanvas(canvas) {
+        return new Promise((resolve) => {
+            const html5QrCode = new Html5Qrcode("reader"); // نستخدم معرف وهمي للقارئ
             
-            const imageFile = input.files[0];
-            const statusMsg = document.getElementById('status-msg');
-            statusMsg.innerText = "جاري تحليل الصورة...";
-
-            const html5QrCodeFile = new Html5Qrcode("reader");
-
-            html5QrCodeFile.scanFileV2(imageFile, true)
-            .then(decodedResult => {
-                // نجاح
-                document.getElementById('barcodeInput').value = decodedResult.decodedText;
+            html5QrCode.scanFileV2(canvas.toDataURL('image/png'), true)
+            .then(decodedText => {
+                document.getElementById('barcodeInput').value = decodedText.decodedText;
                 updateLabel();
-                statusMsg.innerText = "✅ تم استخراج الرقم من الصورة!";
+                resolve(true);
             })
             .catch(err => {
-                // فشل
-                console.log(err);
-                statusMsg.innerText = "❌ لم يتم العثور على باركود واضح. جرب الكاميرا المباشرة.";
+                console.log("Scan failed on this pass");
+                resolve(false);
             });
+        });
+    }
+
+    // فلتر معالجة الصورة (يحولها لأبيض وأسود صارخ)
+    function applyHighContrastFilter(sourceCanvas) {
+        const ctx = sourceCanvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+        const data = imgData.data;
+
+        // تحويل كل بكسل
+        for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            // تحويل للرمادي
+            const gray = (r + g + b) / 3;
+            // تطبيق عتبة (Threshold) - إذا فاتح خليه أبيض، غامق خليه أسود
+            // الرقم 128 هو المنتصف، يمكن تعديله لزيادة الحساسية
+            const val = gray > 100 ? 255 : 0;
+
+            data[i] = val;     // R
+            data[i + 1] = val; // G
+            data[i + 2] = val; // B
         }
 
-        // 3. الحفظ والمشاركة
-        const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
+        // إنشاء كانفاس جديد بالبيانات المعالجة
+        const newCanvas = document.createElement('canvas');
+        newCanvas.width = sourceCanvas.width;
+        newCanvas.height = sourceCanvas.height;
+        newCanvas.getContext('2d').putImageData(imgData, 0, 0);
+        return newCanvas;
+    }
 
-        function saveImage() {
-            const element = document.getElementById("sticker-box");
-            const originalBorder = element.style.border;
-            element.style.border = "none";
-            html2canvas(element, captureOptions).then(canvas => {
-                const userVal = document.getElementById('userPart').value;
-                const link = document.createElement('a');
-                link.download = `Label_${userVal}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                element.style.border = originalBorder;
+    // ---------------------------------------------------------
+    // 3. الكاميرا المباشرة
+    // ---------------------------------------------------------
+    let html5QrcodeScanner;
+    function startCamera() {
+        // إخفاء القص
+        if (cropper) { cropper.destroy(); cropper = null; }
+        cropContainer.style.display = 'none';
+        processBtn.style.display = 'none';
+
+        const readerDiv = document.getElementById('reader');
+        if (readerDiv.style.display === 'block') { stopCamera(); return; }
+        
+        readerDiv.style.display = 'block';
+        html5QrcodeScanner = new Html5Qrcode("reader");
+        html5QrcodeScanner.start(
+            { facingMode: "environment" },
+            { fps: 15, qrbox: { width: 280, height: 100 }, experimentalFeatures: { useBarCodeDetectorIfSupported: true } },
+            (decodedText) => {
+                document.getElementById('barcodeInput').value = decodedText;
+                updateLabel();
+                stopCamera();
+                statusMsg.innerText = "✅ تم القراءة من الكاميرا";
+            },
+            () => {}
+        );
+    }
+
+    function stopCamera() {
+        if (html5QrcodeScanner) {
+            html5QrcodeScanner.stop().then(() => {
+                document.getElementById('reader').style.display = 'none';
+                html5QrcodeScanner.clear();
             });
         }
+    }
 
-        function shareImage() {
-            const element = document.getElementById("sticker-box");
-            const originalBorder = element.style.border;
-            element.style.border = "none";
-            html2canvas(element, captureOptions).then(canvas => {
-                canvas.toBlob(blob => {
-                    if (navigator.share) {
-                        const file = new File([blob], "sticker.png", { type: "image/png" });
-                        navigator.share({ files: [file], title: 'ملصق البحراني' }).catch(console.error);
-                    } else {
-                        alert("المشاركة غير مدعومة");
-                    }
-                    element.style.border = originalBorder;
-                });
+    // ---------------------------------------------------------
+    // 4. وظائف الملصق الأساسية
+    // ---------------------------------------------------------
+    let currentRandom = "";
+    function generateNewRandom() {
+        currentRandom = Math.floor(100000 + Math.random() * 900000).toString();
+        document.getElementById('randomDisplay').innerText = currentRandom;
+        updateLabel();
+    }
+
+    function updateLabel() {
+        document.getElementById('shopTxt').innerText = document.getElementById('shopInput').value;
+        let userVal = document.getElementById('userPart').value;
+        if(currentRandom === "") { generateNewRandom(); return; }
+        document.getElementById('fullNumTxt').innerText = "13" + userVal + currentRandom;
+        try {
+            JsBarcode("#barcode", document.getElementById('barcodeInput').value, {
+                format: "CODE128", lineColor: "#000", width: 2.3, height: 60, displayValue: true, fontSize: 18, margin: 0
             });
-        }
+        } catch (e) {}
+    }
 
-        window.onload = function() {
-            generateNewRandom();
-        };
-    </script>
+    // الحفظ والمشاركة
+    const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
+    function saveImage() {
+        const el = document.getElementById("sticker-box");
+        const border = el.style.border; el.style.border = "none";
+        html2canvas(el, captureOptions).then(c => {
+            const link = document.createElement('a');
+            link.download = `Label_${document.getElementById('userPart').value}.png`;
+            link.href = c.toDataURL("image/png"); link.click();
+            el.style.border = border;
+        });
+    }
+    function shareImage() {
+        const el = document.getElementById("sticker-box");
+        const border = el.style.border; el.style.border = "none";
+        html2canvas(el, captureOptions).then(c => {
+            c.toBlob(blob => {
+                if (navigator.share) {
+                    navigator.share({ files: [new File([blob], "sticker.png", { type: "image/png" })], title: 'ملصق' });
+                } else { alert("المشاركة غير مدعومة"); }
+                el.style.border = border;
+            });
+        });
+    }
+
+    window.onload = function() { generateNewRandom(); };
+</script>
 
 </body>
 </html>
