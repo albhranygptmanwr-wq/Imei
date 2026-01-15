@@ -93,7 +93,8 @@
         #sticker-box { 
             background-color: white; 
             width: 320px; 
-            padding: 25px 15px; 
+            /* تم تقليل الحشوة الرأسية هنا لتصبح الصورة أقصر */
+            padding: 15px 15px; 
             text-align: center; 
             border: 1px solid #eee; 
             display: flex; 
@@ -101,10 +102,10 @@
             align-items: center; 
         }
         .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
-        .top-number { font-size: 34px; font-weight: bold; margin-bottom: 10px; font-family: Arial; }
+        .top-number { font-size: 34px; font-weight: bold; margin-bottom: 5px; font-family: Arial; }
         
-        /* هذا العنصر يظهر الباركود */
-        svg#barcode { width: 100%; height: auto; display: block; margin-top: 5px; min-height: 50px; }
+        /* تقليل الهامش العلوي للباركود */
+        svg#barcode { width: 100%; height: auto; display: block; margin-top: 2px; min-height: 50px; }
     </style>
 </head>
 <body>
@@ -185,22 +186,19 @@
             let barcodeVal = document.getElementById('barcodeInput').value;
             let barcodeSvg = document.getElementById('barcode');
 
-            // إذا كان الحقل يحتوي على أرقام، نظهر الباركود
             if (barcodeVal.length > 0) {
                 barcodeSvg.style.display = "block";
                 try {
                     JsBarcode("#barcode", barcodeVal, {
                         format: "CODE128", 
                         lineColor: "#000", 
-                        width: 2, // عرض الخط
-                        height: 50, // ارتفاع الباركود
-                        displayValue: true, // إظهار الرقم تحت الخطوط
-                        fontSize: 18, 
-                        margin: 5
+                        width: 2, 
+                        height: 50, 
+                        displayValue: true, 
+                        fontSize: 16, // تقليل حجم خط الأرقام تحت الباركود قليلاً
+                        margin: 2 // تقليل هوامش الباركود الداخلية
                     });
                 } catch (e) {
-                    console.error("Barcode Error", e);
-                    // حتى لو فشل، نحاول إبقاء المكان محجوزاً
                     barcodeSvg.style.display = "none";
                 }
             } else {
@@ -250,9 +248,7 @@
         }
 
         function onScanSuccess(decodedText) {
-            // تنظيف النص فوراً من أي رموز
             let cleanText = decodedText.replace(/[^0-9]/g, '');
-            
             if(cleanText.length > 3) {
                 document.getElementById('barcodeInput').value = cleanText;
                 updateLabel();
@@ -285,7 +281,7 @@
             .catch(err => {});
         }
 
-        // --- 3. الحفظ (مع إصلاح القص) ---
+        // --- 3. الحفظ (تم تقصير الصورة) ---
         const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
 
         function saveImage() {
@@ -294,7 +290,8 @@
             const originalPaddingBottom = window.getComputedStyle(el).paddingBottom;
 
             el.style.border = "none";
-            el.style.paddingBottom = "80px"; // مساحة أمان لمنع القص
+            // تم تقليل مساحة الأمان هنا لتصبح الصورة أقصر (من 80 إلى 30)
+            el.style.paddingBottom = "30px"; 
 
             html2canvas(el, captureOptions).then(canvas => {
                 const link = document.createElement('a');
@@ -314,7 +311,8 @@
             const originalPaddingBottom = window.getComputedStyle(el).paddingBottom;
 
             el.style.border = "none";
-            el.style.paddingBottom = "80px";
+            // تم تقليل المساحة هنا أيضاً
+            el.style.paddingBottom = "30px";
 
             html2canvas(el, captureOptions).then(canvas => {
                 canvas.toBlob(blob => {
