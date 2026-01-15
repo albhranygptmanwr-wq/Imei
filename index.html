@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الماسح الاحترافي (فلاش + زوم)</title>
+    <title>الماسح الاحترافي (IMEI Checker)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -73,7 +73,10 @@
         /* --- الحقول --- */
         .input-group { margin-bottom: 12px; text-align: right; }
         label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
-        input.normal-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; box-sizing: border-box; }
+        
+        /* تأثير النجاح على الحقل */
+        input.normal-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; box-sizing: border-box; transition: 0.3s; }
+        input.normal-input.success { border-color: #28a745; background-color: #e8f5e9; }
 
         /* الرقم الخاص */
         .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 8px; background-color: #f8f9fa; overflow: hidden; }
@@ -93,8 +96,7 @@
         #sticker-box { 
             background-color: white; 
             width: 320px; 
-            /* تم تقليل الحشوة الرأسية هنا لتصبح الصورة أقصر */
-            padding: 15px 15px; 
+            padding: 15px 15px; /* صورة قصيرة */
             text-align: center; 
             border: 1px solid #eee; 
             display: flex; 
@@ -104,14 +106,13 @@
         .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
         .top-number { font-size: 34px; font-weight: bold; margin-bottom: 5px; font-family: Arial; }
         
-        /* تقليل الهامش العلوي للباركود */
         svg#barcode { width: 100%; height: auto; display: block; margin-top: 2px; min-height: 50px; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h3>نظام المسح الشامل</h3>
+        <h3>نظام المسح (تحقق 15 رقم)</h3>
 
         <div id="camera-container">
             <div id="reader"></div>
@@ -132,8 +133,8 @@
         </button>
 
         <div class="input-group">
-            <label>رقم الباركود (IMEI):</label>
-            <input class="normal-input" type="text" id="barcodeInput" value="" placeholder="امسح الباركود أو اكتبه هنا" 
+            <label>رقم الباركود (IMEI - 15 رقم):</label>
+            <input class="normal-input" type="text" id="barcodeInput" value="" placeholder="يجب أن يكون 15 رقم" 
                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateLabel()">
         </div>
 
@@ -186,6 +187,7 @@
             let barcodeVal = document.getElementById('barcodeInput').value;
             let barcodeSvg = document.getElementById('barcode');
 
+            // إظهار الباركود
             if (barcodeVal.length > 0) {
                 barcodeSvg.style.display = "block";
                 try {
@@ -195,8 +197,8 @@
                         width: 2, 
                         height: 50, 
                         displayValue: true, 
-                        fontSize: 16, // تقليل حجم خط الأرقام تحت الباركود قليلاً
-                        margin: 2 // تقليل هوامش الباركود الداخلية
+                        fontSize: 16,
+                        margin: 2
                     });
                 } catch (e) {
                     barcodeSvg.style.display = "none";
@@ -206,7 +208,7 @@
             }
         }
 
-        // --- 2. الكاميرا ---
+        // --- 2. الكاميرا (المنطق المعدل للتحقق) ---
         let html5QrCode;
         let isFlashOn = false;
         
@@ -214,29 +216,23 @@
             const camContainer = document.getElementById('camera-container');
             const camTools = document.getElementById('cam-tools');
             const startBtn = document.getElementById('startBtn');
+            const inputField = document.getElementById('barcodeInput');
 
+            // إذا كانت شغالة، نغلقها
             if (camContainer.style.display === 'block') {
-                if(html5QrCode) { 
-                    html5QrCode.stop().then(() => {
-                        html5QrCode.clear();
-                        camContainer.style.display = 'none';
-                        camTools.style.display = 'none';
-                        startBtn.innerText = "📷 تشغيل الكاميرا";
-                        startBtn.style.backgroundColor = "#dc3545";
-                        isFlashOn = false;
-                        document.getElementById('flashBtn').classList.remove('active');
-                    });
-                }
+                stopCameraLogic();
                 return;
             }
 
+            // تشغيل
+            inputField.classList.remove('success'); // إزالة اللون الأخضر
             camContainer.style.display = 'block';
             startBtn.innerText = "❌ إغلاق الكاميرا";
             startBtn.style.backgroundColor = "#333";
 
             html5QrCode = new Html5Qrcode("reader");
             const config = { 
-                fps: 15, 
+                fps: 10, // قللنا السرعة لزيادة الدقة في التحقق
                 qrbox: { width: 280, height: 80 },
                 aspectRatio: 1.0,
                 formatsToSupport: [ Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.EAN_13 ]
@@ -247,14 +243,46 @@
                 .catch(err => { alert("خطأ: " + err); });
         }
 
-        function onScanSuccess(decodedText) {
-            let cleanText = decodedText.replace(/[^0-9]/g, '');
-            if(cleanText.length > 3) {
-                document.getElementById('barcodeInput').value = cleanText;
-                updateLabel();
-                startCamera(); 
-                if (navigator.vibrate) navigator.vibrate(200);
+        function stopCameraLogic() {
+            const camContainer = document.getElementById('camera-container');
+            const camTools = document.getElementById('cam-tools');
+            const startBtn = document.getElementById('startBtn');
+
+            if(html5QrCode) { 
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    camContainer.style.display = 'none';
+                    camTools.style.display = 'none';
+                    startBtn.innerText = "📷 تشغيل الكاميرا";
+                    startBtn.style.backgroundColor = "#dc3545";
+                    isFlashOn = false;
+                    document.getElementById('flashBtn').classList.remove('active');
+                });
             }
+        }
+
+        function onScanSuccess(decodedText) {
+            // تنظيف النص
+            let cleanText = decodedText.replace(/[^0-9]/g, '');
+            
+            // --- الشرط الصارم: فقط 15 رقم ---
+            if(cleanText.length === 15) {
+                
+                // 1. وضع الرقم في الحقل
+                const inputField = document.getElementById('barcodeInput');
+                inputField.value = cleanText;
+                inputField.classList.add('success'); // تلوين الحقل بالأخضر
+                
+                // 2. تحديث الملصق
+                updateLabel();
+                
+                // 3. تنبيه بالاهتزاز (هزتين للتأكيد)
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                
+                // 4. إغلاق الكاميرا فوراً لتثبيت النتيجة
+                stopCameraLogic();
+            }
+            // إذا لم يكن 15، الكاميرا ستستمر في البحث ولن تغير شيئاً
         }
 
         function enableCameraControls() {
@@ -281,7 +309,7 @@
             .catch(err => {});
         }
 
-        // --- 3. الحفظ (تم تقصير الصورة) ---
+        // --- 3. الحفظ والمشاركة ---
         const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
 
         function saveImage() {
@@ -290,7 +318,6 @@
             const originalPaddingBottom = window.getComputedStyle(el).paddingBottom;
 
             el.style.border = "none";
-            // تم تقليل مساحة الأمان هنا لتصبح الصورة أقصر (من 80 إلى 30)
             el.style.paddingBottom = "30px"; 
 
             html2canvas(el, captureOptions).then(canvas => {
@@ -311,7 +338,6 @@
             const originalPaddingBottom = window.getComputedStyle(el).paddingBottom;
 
             el.style.border = "none";
-            // تم تقليل المساحة هنا أيضاً
             el.style.paddingBottom = "30px";
 
             html2canvas(el, captureOptions).then(canvas => {
