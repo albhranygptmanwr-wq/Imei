@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طباعة ملصقات 38x25</title>
+    <title>طباعة 58mm مخصص</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -11,184 +11,134 @@
     
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #222; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
-        .container { background: white; padding: 15px; border-radius: 16px; width: 100%; max-width: 400px; }
+        .container { background: white; padding: 10px; border-radius: 12px; width: 100%; max-width: 380px; }
         
         /* --- الكاميرا --- */
         #camera-wrapper {
-            position: relative; width: 100%; height: 220px; background: #000;
-            border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none;
+            position: relative; width: 100%; height: 200px; background: #000;
+            border-radius: 8px; overflow: hidden; margin-bottom: 10px; display: none;
         }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-overlay {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 80%; height: 60px; border: 2px solid red; border-radius: 6px; z-index: 10;
-        }
         
-        /* --- المدخلات --- */
+        /* --- أدوات التحكم --- */
+        .controls-area { background: #f0f0f0; padding: 8px; border-radius: 8px; margin-bottom: 10px; }
+        .align-btn-group { display: flex; justify-content: center; gap: 5px; margin-top: 5px; }
+        .align-btn { padding: 5px 15px; border: 1px solid #ccc; background: white; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .align-btn.active { background: #007bff; color: white; border-color: #007bff; }
+        
         .input-group { margin-bottom: 8px; text-align: right; }
-        label { font-weight: bold; font-size: 12px; display: block; margin-bottom: 3px; }
-        input.normal-input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; text-align: center; font-weight: bold; box-sizing: border-box; }
+        input.normal-input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-weight: bold; }
         
-        .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 6px; background: #f8f9fa; }
-        .fixed-part { background: #007bff; color: white; padding: 8px; font-weight: bold; font-size: 14px; }
-        .user-input { border: none; padding: 5px; font-size: 18px; width: 50px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
-        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 18px; color: #555; }
-        .refresh-btn { border: none; background: none; font-size: 20px; cursor: pointer; padding: 0 10px; }
-
-        .main-btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; color: white; }
+        .main-btn { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: white; margin-top: 5px; }
         .btn-cam { background: #dc3545; }
-        .btn-save { background: #28a745; margin-top: 0; }
-        .btn-share { background: #007bff; margin-top: 0; }
-        .btns-row { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-save { background: #28a745; }
 
-        /* --- تصميم الملصق 38mm x 25mm --- */
+        /* --- تصميم القماش (Canvas) --- */
         .preview-area { 
-            margin-top: 20px; padding: 15px; background: #eee; border-radius: 8px; 
-            display: flex; justify-content: center; align-items: center;
+            margin-top: 15px; padding: 10px; background: #333; border-radius: 8px; 
+            display: flex; justify-content: center; overflow: hidden;
         }
 
-        #sticker-box {
-            /* النسبة: 38 عرض / 25 ارتفاع = 1.52
-               نستخدم بيكسل ليمثل الحجم على الشاشة، عند الحفظ سيتم تكبير الدقة
-               304px / 200px = 1.52 (مطابق تماماً)
-            */
-            width: 304px;
-            height: 200px;
-            background-color: white;
-            
-            /* تنسيق المحتوى */
+        /* هذا الصندوق يمثل ورقة الـ 58mm كاملة */
+        #paper-canvas {
+            width: 58mm;  /* العرض الثابت للطابعة */
+            height: 25mm; /* ارتفاع الملصق */
+            background-color: white; 
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* الافتراضي يمين */
+            overflow: hidden;
+            padding: 0;
+            /* حدود بيضاء ليفهم المستخدم أنها ورقة */
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        /* هذا الصندوق يمثل الملصق الفعلي 38mm */
+        .sticker-content {
+            width: 38mm; 
+            height: 100%;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between; /* توزيع المسافات بالتساوي */
-            padding: 4px 2px; /* هوامش داخلية صغيرة جداً للحماية */
-            box-sizing: border-box;
-            
-            border: 1px dashed #999; /* حدود وهمية للمعاينة فقط */
+            justify-content: center;
+            /* خلفية شفافة أو بيضاء */
+            background: white;
         }
 
-        .shop-name {
-            font-size: 16px; /* حجم مناسب للعرض الصغير */
-            font-weight: 800;
-            font-family: Tahoma, sans-serif;
-            color: #000;
-            white-space: nowrap;
-            line-height: 1.2;
-        }
+        .shop-name { font-size: 8px; font-weight: 800; font-family: Tahoma; margin-bottom: 2px; white-space: nowrap; }
+        .top-number { font-size: 22px; font-weight: 900; font-family: Arial; margin: 0; line-height: 1; letter-spacing: 0.5px; }
+        svg#barcode { width: 95%; height: 30px; display: block; }
 
-        .top-number {
-            font-size: 42px; /* الرقم هو الأهم */
-            font-weight: 900;
-            font-family: Arial, sans-serif;
-            color: #000;
-            line-height: 1;
-            letter-spacing: 1px;
-            margin: -2px 0; /* تقليل المسافة العلوية والسفلية */
-        }
-
-        svg#barcode {
-            width: 98%; /* استغلال كامل العرض */
-            height: 45px; /* ارتفاع ثابت للباركود */
-            display: block;
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h3 style="text-align:center; margin-top:0;">طباعة (38mm × 25mm)</h3>
+        <h4 style="text-align:center; margin:5px 0;">محاذاة الطباعة (58mm)</h4>
         
         <div id="camera-wrapper">
             <video id="scanVideo" playsinline muted autoplay></video>
-            <div class="scan-overlay"></div>
         </div>
+        <button class="main-btn btn-cam" id="toggleBtn" onclick="toggleCamera()">📷 الكاميرا</button>
 
-        <button class="main-btn btn-cam" id="toggleBtn" onclick="toggleCamera()">📷 تشغيل الكاميرا</button>
-
-        <div style="margin-top:15px;">
+        <div class="controls-area">
             <div class="input-group">
-                <label>الباركود:</label>
-                <input class="normal-input" type="text" id="barcodeInput" placeholder="-- فارغ --" oninput="updateLabel()">
+                <input class="normal-input" type="text" id="barcodeInput" placeholder="باركود..." oninput="updateLabel()">
             </div>
             
-            <div class="input-group">
-                <label>اسم المحل:</label>
-                <input class="normal-input" type="text" id="shopInput" value="البحراني للهواتف الذكية" oninput="updateLabel()">
-            </div>
-
-            <div class="input-group">
-                <label>الرقم الخاص:</label>
-                <div class="smart-input-container">
-                    <div class="fixed-part">13</div>
-                    <input type="number" id="userPart" class="user-input" value="60" oninput="updateLabel()">
-                    <div class="random-part" id="randomDisplay">------</div>
-                    <button class="refresh-btn" onclick="generateNewRandom()">🔄</button>
-                </div>
+            <div style="text-align:center; font-size:12px; font-weight:bold;">ضبط مكان الطباعة:</div>
+            <div class="align-btn-group">
+                <button class="align-btn" onclick="setAlignment('flex-start')">يسار</button>
+                <button class="align-btn" onclick="setAlignment('center')">وسط</button>
+                <button class="align-btn active" onclick="setAlignment('flex-end')">يمين</button>
             </div>
         </div>
 
-        <div class="btns-row">
-            <button class="main-btn btn-save" onclick="saveImage()">💾 حفظ</button>
-            <button class="main-btn btn-share" onclick="shareImage()">📤 مشاركة</button>
-        </div>
+        <button class="main-btn btn-save" onclick="saveImage()">💾 حفظ الصورة للطابعة</button>
 
         <div class="preview-area">
-            <div id="sticker-box">
-                <div class="shop-name" id="shopTxt">البحراني للهواتف الذكية</div>
-                <div class="top-number" id="fullNumTxt">1360123456</div>
-                <svg id="barcode"></svg>
+            <div id="paper-canvas">
+                <div class="sticker-content">
+                    <div class="shop-name">البحراني للهواتف</div>
+                    <div class="top-number" id="fullNumTxt">1360123456</div>
+                    <svg id="barcode"></svg>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // --- المنطق البرمجي ---
         let stream = null, isScanning = false, zxingReader = null;
-        const videoEl = document.getElementById('scanVideo');
-
-        function generateNewRandom() {
-            // توليد 6 أرقام عشوائية
-            const rnd = Math.floor(100000 + Math.random() * 900000).toString();
-            document.getElementById('randomDisplay').innerText = rnd;
-            updateLabel();
+        
+        // --- التحكم بالمحاذاة ---
+        function setAlignment(position) {
+            document.getElementById('paper-canvas').style.justifyContent = position;
+            // تحديث ستايل الأزرار
+            document.querySelectorAll('.align-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
         }
 
+        // --- التحديث ---
         function updateLabel() {
-            // تحديث النصوص
-            document.getElementById('shopTxt').innerText = document.getElementById('shopInput').value;
+            // توليد رقم عشوائي إذا لم يوجد
+            let currentNum = document.getElementById('fullNumTxt').innerText;
+            if(!currentNum) currentNum = "1360" + Math.floor(100000 + Math.random() * 900000);
             
-            const userVal = document.getElementById('userPart').value;
-            const randomVal = document.getElementById('randomDisplay').innerText;
+            let inputVal = document.getElementById('barcodeInput').value;
+            let finalVal = inputVal ? inputVal : currentNum;
             
-            // إذا لم يتم توليد رقم عشوائي بعد
-            if(randomVal === "------") { generateNewRandom(); return; }
+            document.getElementById('fullNumTxt').innerText = finalVal;
 
-            const fullNumber = "13" + userVal + randomVal;
-            document.getElementById('fullNumTxt').innerText = fullNumber;
-
-            // تحديد الباركود (إما الممسوح أو المولد)
-            let scanVal = document.getElementById('barcodeInput').value;
-            let codeToPrint = scanVal.length > 0 ? scanVal : fullNumber;
-            
-            let barcodeSvg = document.getElementById('barcode');
-            
-            if(codeToPrint) {
-                barcodeSvg.style.display = "block";
-                try {
-                    JsBarcode("#barcode", codeToPrint, {
-                        format: "CODE128",
-                        lineColor: "#000",
-                        // هام جداً: العرض 2 ليناسب حجم 38 مم
-                        width: 2, 
-                        height: 40,
-                        displayValue: false, // لا نريد تكرار الرقم
-                        margin: 0, // إلغاء الهوامش تماماً
-                        flat: true
-                    });
-                } catch(e) { barcodeSvg.style.display = "none"; }
-            } else {
-                barcodeSvg.style.display = "none";
-            }
+            try {
+                JsBarcode("#barcode", finalVal, {
+                    format: "CODE128",
+                    lineColor: "#000",
+                    width: 1.8,  // أنحف قليلاً ليناسب المساحة الصغيرة
+                    height: 25,
+                    displayValue: false,
+                    margin: 0
+                });
+            } catch(e){}
         }
 
         // --- الكاميرا ---
@@ -196,69 +146,41 @@
             if (isScanning) { stopCamera(); return; }
             try {
                 stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                videoEl.srcObject = stream;
+                document.getElementById('scanVideo').srcObject = stream;
                 document.getElementById('camera-wrapper').style.display = 'block';
-                document.getElementById('toggleBtn').innerText = "❌ إغلاق";
-                document.getElementById('toggleBtn').style.backgroundColor = "#333";
                 isScanning = true;
                 
-                // استخدام ZXing للمسح
                 if(!zxingReader) zxingReader = new ZXing.BrowserMultiFormatReader();
-                zxingReader.decodeFromVideoDevice(null, videoEl, (res)=>{
+                zxingReader.decodeFromVideoDevice(null, 'scanVideo', (res)=>{
                     if(res){
                          document.getElementById('barcodeInput').value = res.getText();
-                         // اهتزاز وتحديث
-                         if(navigator.vibrate) navigator.vibrate(100);
                          updateLabel();
                          stopCamera();
                     }
                 });
-            } catch (e) { alert("تعذر فتح الكاميرا"); stopCamera(); }
+            } catch (e) { alert("الكاميرا لا تعمل"); stopCamera(); }
         }
 
         function stopCamera() {
             isScanning = false;
-            if(zxingReader) { zxingReader.reset(); }
             if(stream) stream.getTracks().forEach(t=>t.stop());
             document.getElementById('camera-wrapper').style.display = 'none';
-            document.getElementById('toggleBtn').innerText = "📷 تشغيل الكاميرا";
-            document.getElementById('toggleBtn').style.backgroundColor = "#dc3545";
         }
 
-        // --- الحفظ والمشاركة ---
-        // scale 4 يعطي دقة عالية جداً للطباعة الصغيرة
-        const opts = { scale: 4, useCORS: true, backgroundColor: "#ffffff" };
-
+        // --- الحفظ ---
         function saveImage() {
-            const el = document.getElementById("sticker-box");
-            const oldBorder = el.style.border;
-            el.style.border = "none"; // إخفاء الحدود عند الحفظ
+            const el = document.getElementById("paper-canvas"); // نحفظ الورقة الكاملة 58مم
             
-            html2canvas(el, opts).then(canvas => {
+            // رفع الدقة للطباعة
+            html2canvas(el, { scale: 5, useCORS: true }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `38x25_${document.getElementById('fullNumTxt').innerText}.png`;
+                link.download = `Print_58mm.png`;
                 link.href = canvas.toDataURL();
                 link.click();
-                el.style.border = oldBorder;
             });
         }
 
-        function shareImage() {
-            const el = document.getElementById("sticker-box");
-            const oldBorder = el.style.border;
-            el.style.border = "none";
-            
-            html2canvas(el, opts).then(canvas => {
-                canvas.toBlob(blob => {
-                    if (navigator.share) {
-                        navigator.share({ files: [new File([blob], "sticker.png", {type: "image/png"})] });
-                    } else { alert("جهازك لا يدعم المشاركة المباشرة"); }
-                    el.style.border = oldBorder;
-                });
-            });
-        }
-
-        window.onload = generateNewRandom;
+        window.onload = updateLabel;
     </script>
 </body>
 </html>
