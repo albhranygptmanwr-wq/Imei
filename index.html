@@ -73,7 +73,13 @@
             cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
             margin-bottom: 20px;
         }
+.shop-name {
+    letter-spacing: 0.5px;
+}
 
+.top-number {
+    letter-spacing: 1px;
+}
         .input-group { margin-bottom: 12px; text-align: right; }
         label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
         input.normal-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; box-sizing: border-box; transition: 0.3s; }
@@ -335,9 +341,18 @@
             if (barcodeVal.length > 0) {
                 barcodeSvg.style.display = "block";
                 try {
-                    JsBarcode("#barcode", barcodeVal, {
-                        format: "CODE128", lineColor: "#000", width: 2, height: 50, displayValue: true, fontSize: 16, margin: 2
-                    });
+                  JsBarcode("#barcode", barcodeVal, {
+    format: "CODE128",
+    lineColor: "#000",
+    width: 2.2,
+    height: 60,
+    displayValue: true,
+    fontSize: 18,
+    font: "Arial",
+    textMargin: 6,
+    marginTop: 5,
+    marginBottom: 0
+});
                 } catch (e) { barcodeSvg.style.display = "none"; }
             } else { barcodeSvg.style.display = "none"; }
         }
