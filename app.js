@@ -1,222 +1,384 @@
-const KEY = "labels_items_v2";
-const loadItems = () => JSON.parse(localStorage.getItem(KEY) || "[]");
-const saveItems = (items) => localStorage.setItem(KEY, JSON.stringify(items));
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الماسح الهجين (Native + ZXing)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #222; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
+        .container { background: white; padding: 15px; border-radius: 16px; width: 100%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+        h3 { text-align: center; margin: 0 0 15px 0; color: #2c3e50; }
 
-const video = document.getElementById("video");
-const imeiEl = document.getElementById("imei");
-const codeEl = document.getElementById("code");
-const listEl = document.getElementById("list");
+        /* منطقة الفيديو */
+        #camera-wrapper {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
 
-function makeSerial(code){
-  if(!/^\d{2,3}$/.test(code)) throw new Error("الكود لازم يكون 2 أو 3 أرقام");
-  const rest = 5 - code.length;
-  let rand = "";
-  for(let i=0;i<rest;i++) rand += Math.floor(Math.random()*10);
-  return "13" + code + rand;
-}
+        /* الطبقة الحمراء */
+        .scan-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85%; height: 80px;
+            border: 2px solid rgba(255, 0, 0, 0.8);
+            box-shadow: 0 0 0 1000px rgba(0,0,0,0.6);
+            border-radius: 6px;
+            z-index: 10;
+        }
+        .scan-line {
+            width: 100%; height: 2px; background: red;
+            position: absolute; top: 0;
+            animation: scanAnim 2s infinite linear;
+        }
+        @keyframes scanAnim { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
 
-function normalizeImei(raw){
-  const digits = (raw || "").replace(/\D/g,"");
-  if(digits.length === 15) return digits;
-  if(digits.length > 15) return digits.slice(-15);
-  return digits;
-}
+        /* أدوات التحكم (فلاش وزوم) */
+        .camera-controls {
+            display: flex; gap: 10px; align-items: center; justify-content: center;
+            background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 10px;
+            display: none;
+        }
+        .icon-btn {
+            background: white; border: 1px solid #ccc; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .icon-btn.active { background-color: #ffc107; border-color: #ffc107; color: #000; }
+        .zoom-slider-container { flex-grow: 1; display: flex; align-items: center; gap: 5px; }
+        input[type=range] { width: 100%; }
 
-function beep(){
-  try{
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine";
-    o.frequency.value = 880;
-    o.connect(g); g.connect(ctx.destination);
-    g.gain.value = 0.04;
-    o.start();
-    setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
-  }catch(_){}
-}
+        /* الأزرار والحقول */
+        .main-scan-btn {
+            width: 100%; padding: 15px; background-color: #dc3545; color: white;
+            border: none; border-radius: 10px; font-size: 18px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin-bottom: 20px;
+        }
 
-function notifyCaptured(){
-  if(navigator.vibrate) navigator.vibrate(80);
-  beep();
-}
+        .input-group { margin-bottom: 12px; text-align: right; }
+        label { font-weight: bold; display: block; margin-bottom: 5px; font-size: 14px; }
+        input.normal-input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; text-align: center; font-size: 18px; font-weight: bold; box-sizing: border-box; transition: 0.3s; }
+        input.normal-input.success { border-color: #28a745; background-color: #e8f5e9; color: #155724; }
 
-function render(){
-  const items = loadItems();
-  if(!items.length){
-    listEl.innerHTML = "ما في أجهزة بعد.";
-    return;
-  }
-  listEl.innerHTML = items.map((it,i)=>`
-    <div class="item">
-      ${i+1}) Serial: <b>${it.serial}</b>
-      <div style="margin-top:6px;display:flex;gap:8px">
-        <button onclick="removeItem(${i})" style="padding:6px;font-size:14px">حذف</button>
-      </div>
+        .smart-input-container { display: flex; align-items: center; border: 2px solid #007bff; border-radius: 8px; background-color: #f8f9fa; overflow: hidden; }
+        .fixed-part { background-color: #007bff; color: white; padding: 12px; font-weight: bold; font-size: 16px; }
+        .user-input { border: none; padding: 10px; font-size: 20px; width: 70px; text-align: center; font-weight: bold; outline: none; color: #d63384; }
+        .random-part { flex-grow: 1; text-align: center; font-family: monospace; font-size: 18px; color: #555; }
+        .refresh-btn { border: none; background: none; font-size: 24px; cursor: pointer; padding: 0 15px; }
+
+        .action-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-save { background-color: #28a745; }
+        .btn-share { background-color: #007bff; }
+
+        .preview-area { margin-top: 25px; display: flex; justify-content: center; }
+        #sticker-box { 
+            background-color: white; width: 320px; padding: 15px; 
+            text-align: center; border: 1px solid #eee; 
+            display: flex; flex-direction: column; align-items: center; 
+        }
+        .shop-name { font-size: 22px; font-weight: bold; margin-bottom: 5px; white-space: nowrap; font-family: Tahoma; }
+        .top-number { font-size: 34px; font-weight: bold; margin-bottom: 5px; font-family: Arial; }
+        svg#barcode { width: 100%; height: auto; display: block; margin-top: 5px; min-height: 50px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h3>نظام المسح (المطور)</h3>
+        
+        <div id="camera-wrapper">
+            <video id="scanVideo" playsinline muted autoplay></video>
+            <div class="scan-overlay"><div class="scan-line"></div></div>
+        </div>
+
+        <div class="camera-controls" id="cam-tools">
+            <button class="icon-btn" id="flashBtn" onclick="toggleFlash()">⚡</button>
+            <div class="zoom-slider-container">
+                <span>➖</span>
+                <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" oninput="applyZoom(this.value)" disabled>
+                <span>➕</span>
+            </div>
+        </div>
+
+        <button class="main-scan-btn" id="toggleBtn" onclick="toggleCamera()">
+            📷 تشغيل الكاميرا
+        </button>
+
+        <div class="input-group">
+            <label>رقم الباركود (15 رقم):</label>
+            <input class="normal-input" type="text" id="barcodeInput" placeholder="-- يمسح تلقائياً --" 
+                   oninput="this.value = this.value.replace(/[^0-9]/g, ''); updateLabel()">
+        </div>
+
+        <div class="input-group">
+            <label>اسم المحل:</label>
+            <input class="normal-input" type="text" id="shopInput" value="البحراني للهواتف الذكية" oninput="updateLabel()">
+        </div>
+
+        <div class="input-group">
+            <label>الرقم الخاص:</label>
+            <div class="smart-input-container">
+                <div class="fixed-part">13</div>
+                <input type="number" id="userPart" class="user-input" placeholder="00" value="60" oninput="updateLabel()">
+                <div class="random-part" id="randomDisplay">------</div>
+                <button class="refresh-btn" onclick="generateNewRandom()">🔄</button>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <button class="btn btn-save" onclick="saveImage()">💾 حفظ</button>
+            <button class="btn btn-share" onclick="shareImage()">📤 مشاركة</button>
+        </div>
+
+        <div class="preview-area">
+            <div id="sticker-box">
+                <div class="shop-name" id="shopTxt">البحراني للهواتف الذكية</div>
+                <div class="top-number" id="fullNumTxt"></div>
+                <svg id="barcode"></svg>
+            </div>
+        </div>
     </div>
-  `).join("");
-}
 
-window.removeItem = function(i){
-  const items = loadItems();
-  items.splice(i,1);
-  saveItems(items);
-  render();
-};
+    <script>
+        // --- دوال مساعدة من الكود القديم (app.js) ---
+        function beep(){
+            try{
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "sine";
+                o.frequency.value = 880;
+                o.connect(g); g.connect(ctx.destination);
+                g.gain.value = 0.04;
+                o.start();
+                setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
+            }catch(_){}
+        }
 
-let _zxingReader = null;
+        function normalizeImei(raw){
+            const digits = (raw || "").replace(/\D/g,"");
+            if(digits.length === 15) return digits;
+            if(digits.length > 15) return digits.slice(-15);
+            return digits;
+        }
 
-async function stopCamera(){
-  try{
-    if(_zxingReader){
-      _zxingReader.reset();
-      _zxingReader = null;
-    }
-    const stream = video.srcObject;
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-    }
-  }catch(_){}
-}
+        // --- المتغيرات ---
+        let stream = null;
+        let isScanning = false;
+        let videoTrack = null;
+        let zxingReader = null;
+        
+        const videoEl = document.getElementById('scanVideo');
+        const wrapper = document.getElementById('camera-wrapper');
+        const controls = document.getElementById('cam-tools');
+        const btn = document.getElementById('toggleBtn');
+        const inputEl = document.getElementById('barcodeInput');
 
-document.getElementById("stopCam").onclick = stopCamera;
-
-document.getElementById("startCam").onclick = async () => {
-  await stopCamera();
-
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-    video.srcObject = stream;
-
-    // Native BarcodeDetector
-    if("BarcodeDetector" in window){
-      const detector = new BarcodeDetector({ formats: ["code_128","ean_13","qr_code","itf","code_39"] });
-
-      const tick = async () => {
-        if(!video.srcObject) return;
-        if(video.readyState === video.HAVE_ENOUGH_DATA){
-          const codes = await detector.detect(video);
-          if(codes && codes.length){
-            const val = normalizeImei(codes[0].rawValue);
-            if(/^\d{15}$/.test(val)){
-              imeiEl.value = val;
-              notifyCaptured();
-              await stopCamera();
-              return;
+        // --- تشغيل الكاميرا (النظام الهجين) ---
+        async function toggleCamera() {
+            if (isScanning) {
+                stopCamera();
+                return;
             }
-          }
+
+            try {
+                // 1. طلب الكاميرا الخلفية
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 1920 } } 
+                });
+                videoEl.srcObject = stream;
+                videoTrack = stream.getVideoTracks()[0];
+
+                // إعداد الواجهة
+                wrapper.style.display = 'block';
+                controls.style.display = 'flex';
+                document.getElementById('zoomSlider').disabled = false;
+                btn.innerText = "❌ إغلاق الكاميرا";
+                btn.style.backgroundColor = "#333";
+                isScanning = true;
+
+                // 2. اختيار محرك المسح (نفس منطق الكود القديم)
+                
+                // الخيار الأول: Native BarcodeDetector (سريع جداً للأندرويد)
+                if ("BarcodeDetector" in window) {
+                    const detector = new BarcodeDetector({ formats: ["code_128", "ean_13", "qr_code"] });
+                    
+                    const tick = async () => {
+                        if (!isScanning) return;
+                        try {
+                            const codes = await detector.detect(videoEl);
+                            if (codes && codes.length) {
+                                const val = normalizeImei(codes[0].rawValue);
+                                if (/^\d{15}$/.test(val)) {
+                                    handleSuccess(val);
+                                    return;
+                                }
+                            }
+                        } catch (e) {}
+                        requestAnimationFrame(tick);
+                    };
+                    tick();
+                
+                // الخيار الثاني: ZXing (للأيفون والأجهزة الأخرى)
+                } else if (window.ZXing) {
+                    console.log("Using ZXing Fallback");
+                    zxingReader = new ZXing.BrowserMultiFormatReader();
+                    zxingReader.decodeFromVideoDevice(null, videoEl, (result, err) => {
+                        if (result) {
+                            const val = normalizeImei(result.getText());
+                            if (/^\d{15}$/.test(val)) {
+                                handleSuccess(val);
+                            }
+                        }
+                    });
+                } else {
+                    alert("المتصفح لا يدعم المسح، تأكد من تحميل الصفحة بشكل صحيح.");
+                }
+
+            } catch (e) {
+                alert("فشل فتح الكاميرا: " + e.message);
+                stopCamera();
+            }
         }
-        requestAnimationFrame(tick);
-      };
-      tick();
-      return;
-    }
 
-    // ZXing fallback (iPhone)
-    if(!window.ZXing){
-      alert("ZXing غير محمّل. أضف في index.html: <script src='https://unpkg.com/@zxing/library@latest'></script>");
-      return;
-    }
+        async function stopCamera() {
+            isScanning = false;
+            
+            // إيقاف ZXing إذا كان يعمل
+            if (zxingReader) {
+                zxingReader.reset();
+                zxingReader = null;
+            }
 
-    _zxingReader = new ZXing.BrowserMultiFormatReader();
-    _zxingReader.decodeFromVideoDevice(null, video, async (result, err) => {
-      if(result){
-        const val = normalizeImei(result.getText());
-        if(/^\d{15}$/.test(val)){
-          imeiEl.value = val;
-          notifyCaptured();
-          await stopCamera();
+            // إيقاف الفيديو
+            if (stream) {
+                stream.getTracks().forEach(t => t.stop());
+                stream = null;
+                videoTrack = null;
+            }
+            
+            videoEl.srcObject = null;
+            wrapper.style.display = 'none';
+            controls.style.display = 'none';
+            btn.innerText = "📷 تشغيل الكاميرا";
+            btn.style.backgroundColor = "#dc3545";
+            document.getElementById('flashBtn').classList.remove('active');
         }
-      }
-    });
 
-  }catch(e){
-    alert("فشل فتح الكاميرا: " + e.message);
-  }
-};
+        function handleSuccess(val) {
+            inputEl.value = val;
+            inputEl.classList.add('success');
+            updateLabel();
+            beep(); // صوت التنبيه من الكود القديم
+            if (navigator.vibrate) navigator.vibrate(100);
+            stopCamera();
+        }
 
-document.getElementById("add").onclick = () => {
-  const imei = normalizeImei(imeiEl.value.trim());
-  const code = codeEl.value.trim();
+        // --- التحكم بالفلاش والزوم (مدمج مع الكود القديم) ---
+        async function toggleFlash() {
+            if (!videoTrack) return;
+            const btn = document.getElementById('flashBtn');
+            const isOn = btn.classList.contains('active');
+            
+            try {
+                await videoTrack.applyConstraints({ advanced: [{ torch: !isOn }] });
+                btn.classList.toggle('active');
+            } catch (e) {
+                alert("الفلاش غير مدعوم");
+            }
+        }
 
-  if(!/^\d{15}$/.test(imei)) return alert("IMEI لازم يكون 15 رقم");
-  if(!/^\d{2,3}$/.test(code)) return alert("الكود لازم يكون 2 أو 3 أرقام");
+        async function applyZoom(val) {
+            if (!videoTrack) return;
+            try {
+                await videoTrack.applyConstraints({ advanced: [{ zoom: parseFloat(val) }] });
+            } catch (e) {}
+        }
 
-  // منع التكرار (اختياري)
-  const items = loadItems();
-  if(items.some(x => x.imei === imei)){
-    return alert("هذا IMEI موجود مسبقًا في القائمة");
-  }
+        // --- باقي دوال التوليد والحفظ (نفس السابق) ---
+        let currentRandom = "";
+        function generateNewRandom() {
+            currentRandom = Math.floor(100000 + Math.random() * 900000).toString();
+            document.getElementById('randomDisplay').innerText = currentRandom;
+            updateLabel();
+        }
 
-  const serial = makeSerial(code);
-  items.push({ imei, code, serial, at: Date.now() });
-  saveItems(items);
+        function updateLabel() {
+            document.getElementById('shopTxt').innerText = document.getElementById('shopInput').value;
+            let userVal = document.getElementById('userPart').value;
+            if(currentRandom === "") { generateNewRandom(); return; }
+            document.getElementById('fullNumTxt').innerText = "13" + userVal + currentRandom;
+            
+            let barcodeVal = document.getElementById('barcodeInput').value;
+            let barcodeSvg = document.getElementById('barcode');
 
-  imeiEl.value = "";
-  codeEl.value = "";
-  render();
-};
+            if (barcodeVal.length > 0) {
+                barcodeSvg.style.display = "block";
+                try {
+                    JsBarcode("#barcode", barcodeVal, {
+                        format: "CODE128", lineColor: "#000", width: 2, height: 50, displayValue: true, fontSize: 16, margin: 2
+                    });
+                } catch (e) { barcodeSvg.style.display = "none"; }
+            } else { barcodeSvg.style.display = "none"; }
+        }
 
-document.getElementById("clear").onclick = () => {
-  saveItems([]);
-  render();
-};
+        const captureOptions = { scale: 3, useCORS: true, backgroundColor: "#ffffff" };
 
-document.getElementById("export").onclick = () => exportPdf(loadItems());
+        function saveImage() {
+            const el = document.getElementById("sticker-box");
+            const originalBorder = el.style.border;
+            const originalPadding = window.getComputedStyle(el).paddingBottom;
+            el.style.border = "none"; el.style.paddingBottom = "30px"; 
 
-function exportPdf(items){
-  if(!items.length) return alert("القائمة فاضية");
+            html2canvas(el, captureOptions).then(canvas => {
+                const link = document.createElement('a');
+                let imeiVal = document.getElementById('barcodeInput').value || "Scan";
+                link.download = `Sticker_${imeiVal}.png`;
+                link.href = canvas.toDataURL();
+                link.click();
+                el.style.border = originalBorder; el.style.paddingBottom = originalPadding;
+            });
+        }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+        function shareImage() {
+            const el = document.getElementById("sticker-box");
+            const originalBorder = el.style.border;
+            const originalPadding = window.getComputedStyle(el).paddingBottom;
+            el.style.border = "none"; el.style.paddingBottom = "30px";
 
-  const labelW = 45, labelH = 20;
-  const gapX = 2, gapY = 2;
-  const pageW = 210, pageH = 297;
+            html2canvas(el, captureOptions).then(canvas => {
+                canvas.toBlob(blob => {
+                    if (navigator.share) {
+                        navigator.share({ files: [new File([blob], "sticker.png", {type: "image/png"})], title: 'ملصق' });
+                    } else { alert("غير مدعوم"); }
+                    el.style.border = originalBorder; el.style.paddingBottom = originalPadding;
+                });
+            });
+        }
 
-  const cols = Math.floor((pageW + gapX) / (labelW + gapX));
-  const rows = Math.floor((pageH + gapY) / (labelH + gapY));
+        window.onload = generateNewRandom;
+    </script>
+</body>
+</html>
 
-  const totalW = cols * labelW + (cols - 1) * gapX;
-  const totalH = rows * labelH + (rows - 1) * gapY;
 
-  const startX = (pageW - totalW) / 2;
-  const startY = (pageH - totalH) / 2;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = 600; canvas.height = 160;
-  const ctx = canvas.getContext("2d");
-
-  items.forEach((it, i) => {
-    const pos = i % (cols * rows);
-    if(pos === 0 && i !== 0) doc.addPage();
-
-    const r = Math.floor(pos / cols);
-    const c = pos % cols;
-
-    const x = startX + c * (labelW + gapX);
-    const y = startY + r * (labelH + gapY);
-
-    // Serial
-    doc.setFont("helvetica","normal");
-    doc.setFontSize(10);
-    doc.text(it.serial, x + labelW/2, y + 6, { align: "center" });
-
-    // Barcode (IMEI)
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    JsBarcode(canvas, it.imei, {
-      format: "CODE128",
-      displayValue: false,
-      margin: 0,
-      height: 70
-    });
-
-    const img = canvas.toDataURL("image/png");
-    doc.addImage(img, "PNG", x + 3, y + 8, labelW - 6, 10);
-  });
-
-  doc.save("labels.pdf");
-}
-
-render();
