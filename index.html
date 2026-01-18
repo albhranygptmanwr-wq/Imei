@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام البحراني + طباعة بلوتوث</title>
+    <title>نظام البحراني المتكامل</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -11,10 +11,7 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap');
-    </style>
-
-    <style>
-        /* === إعدادات عامة === */
+        
         body {
             margin: 0; padding: 20px;
             background-color: #f0f2f5; 
@@ -30,26 +27,62 @@
 
         h2.app-title { text-align: center; color: #1a73e8; margin: 0 0 25px 0; font-weight: 700; }
 
-        /* === تنسيقات الإدخال === */
-        .section-title { font-size: 15px; font-weight: 600; color: #5f6368; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .input-group-card { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
-        .input-row-styled { display: flex; align-items: stretch; background: white; border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden; }
+        /* === منطقة الكاميرا والتحكم === */
+        #camera-wrapper {
+            position: relative; width: 100%; height: 260px;
+            background: #000; border-radius: 12px; overflow: hidden;
+            margin-bottom: 10px; display: none; /* مخفي افتراضياً */
+            border: 3px solid #1a73e8;
+        }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        
+        .scan-overlay {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 80%; height: 100px; border: 2px solid rgba(255, 255, 255, 0.9);
+            border-radius: 8px; box-shadow: 0 0 0 1000px rgba(0,0,0,0.6);
+            z-index: 10;
+        }
+        .scan-line {
+            width: 100%; height: 2px; background: #ffc107; position: absolute; top: 0;
+            box-shadow: 0 0 4px #ffc107; animation: scanAnim 2s infinite linear;
+        }
+        @keyframes scanAnim { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
+
+        /* أزرار التحكم بالكاميرا (فلاش وزوم) */
+        .cam-controls-bar {
+            display: none; /* مخفي حتى تفتح الكاميرا */
+            align-items: center; justify-content: space-between; gap: 10px;
+            background: #e8f0fe; padding: 10px; border-radius: 10px; margin-bottom: 15px;
+        }
+        
+        .flash-btn {
+            background: white; border: 1px solid #1a73e8; color: #1a73e8;
+            width: 45px; height: 45px; border-radius: 50%; font-size: 20px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .flash-btn.active { background: #ffc107; border-color: #ffc107; color: #000; }
+
+        .zoom-container { flex: 1; display: flex; align-items: center; gap: 5px; }
+        input[type=range] { width: 100%; accent-color: #1a73e8; }
+
+        .toggle-cam-btn {
+            width: 100%; padding: 14px; background-color: #1a73e8; color: white;
+            border: none; border-radius: 10px; font-size: 16px; font-weight: 700;
+            cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .toggle-cam-btn.stop { background-color: #dc3545; }
+
+        /* === باقي التنسيقات === */
+        .section-title { font-size: 15px; font-weight: 600; color: #5f6368; margin-bottom: 10px; }
+        .input-row-styled { display: flex; align-items: stretch; background: white; border: 2px solid #e0e0e0; border-radius: 8px; overflow: hidden; margin-bottom: 20px;}
         .fixed-prefix-styled { background-color: #e8f0fe; color: #1a73e8; padding: 12px 15px; font-weight: 700; font-family: Arial; display: flex; align-items: center; border-left: 1px solid #e0e0e0; }
         .styled-input { flex: 1; border: none; padding: 12px; font-size: 18px; font-family: Arial; text-align: center; font-weight: bold; outline: none; }
         .refresh-btn-styled { background-color: #fff3cd; color: #856404; border: none; padding: 0 15px; cursor: pointer; font-size: 20px; border-right: 1px solid #e0e0e0; }
-
-        /* === الكاميرا === */
-        .camera-section { margin-bottom: 20px; }
-        #camera-wrapper { position: relative; width: 100%; height: 250px; background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 10px; display: none; border: 3px solid #1a73e8; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .scan-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; height: 80px; border: 2px solid rgba(255, 255, 255, 0.7); border-radius: 8px; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5); }
-        .scan-line { width: 100%; height: 2px; background: #1a73e8; position: absolute; top: 0; box-shadow: 0 0 4px #1a73e8; animation: scanAnim 2s infinite linear; }
-        @keyframes scanAnim { 0% {top: 0;} 50% {top: 100%;} 100% {top: 0;} }
-        .toggle-cam-btn-styled { width: 100%; padding: 14px; background-color: #1a73e8; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .barcode-input-styled { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; text-align: center; font-size: 16px; font-family: Arial; font-weight: bold; outline: none; }
 
-        /* === المعاينة === */
-        .preview-container { background: #f8f9fa; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 20px; }
+        /* المعاينة */
+        .preview-container { background: #f8f9fa; border-radius: 12px; padding: 15px; text-align: center; margin-top: 20px; margin-bottom: 20px; }
         .printer-head { background-color: #e8d880; width: 384px; height: auto; display: flex; flex-direction: column; align-items: flex-start; padding-bottom: 10px; overflow: hidden; margin: 0 auto; border-radius: 8px; border: 3px solid #e8d880; }
         .top-spacer { width: 100%; height: 25px; flex-shrink: 0; }
         .white-label { background-color: white; width: 275px; margin-right: 0px; border-radius: 4px; padding: 5px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
@@ -57,21 +90,16 @@
         .big-number { font-size: 27px; font-weight: 900; font-family: Arial; border-bottom: 3px solid black; padding-bottom: 2px; display: inline-block; margin-bottom: 5px; line-height: 1; letter-spacing: 0.5px; }
         #barcode { width: 98% !important; height: auto; }
 
-        /* === أزرار البلوتوث والطباعة === */
-        .bt-section {
-            background: #e3f2fd; border: 2px dashed #1a73e8; border-radius: 12px; padding: 15px; margin-top: 20px; text-align: center;
-        }
+        /* البلوتوث */
+        .bt-section { background: #e3f2fd; border: 2px dashed #1a73e8; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
         .bt-status { font-size: 14px; font-weight: bold; color: #555; margin-bottom: 10px; }
         .bt-status.connected { color: #28a745; }
-
-        .btn-bt {
-            width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
+        .btn-bt { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; margin-bottom: 5px; }
         .btn-connect { background-color: #1a73e8; color: white; }
-        .btn-print-direct { background-color: #6f42c1; color: white; opacity: 0.5; pointer-events: none; } /* معطل حتى الاتصال */
+        .btn-print-direct { background-color: #6f42c1; color: white; opacity: 0.5; pointer-events: none; }
         .btn-print-direct.ready { opacity: 1; pointer-events: all; }
-
-        .actions-row { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+        
+        .actions-row { display: flex; gap: 10px; border-top: 1px solid #eee; padding-top: 15px; }
         .btn-action { flex: 1; padding: 12px; border: none; border-radius: 50px; font-size: 14px; font-weight: 700; cursor: pointer; color: white; }
         .btn-share { background: #28a745; }
         .btn-download { background: #6c757d; }
@@ -81,31 +109,38 @@
 <body>
 
     <div class="main-card">
-        <h2 class="app-title">نظام البحراني + بلوتوث 🖨️</h2>
+        <h2 class="app-title">نظام البحراني المتكامل 🌟</h2>
 
-        <div class="input-group-card">
-            <div class="section-title">🔢 الرقم الخاص:</div>
-            <div class="input-row-styled">
-                <div class="fixed-prefix-styled">13</div>
-                <input type="text" id="userInputPart" class="styled-input" placeholder="اكتب رقمين.." maxlength="8" oninput="generateRandomNumber()">
-                <button class="refresh-btn-styled" onclick="generateRandomNumber()">🎲</button>
+        <div class="section-title">🔢 الرقم الخاص:</div>
+        <div class="input-row-styled">
+            <div class="fixed-prefix-styled">13</div>
+            <input type="text" id="userInputPart" class="styled-input" placeholder="اكتب رقمين.." maxlength="8" oninput="generateRandomNumber()">
+            <button class="refresh-btn-styled" onclick="generateRandomNumber()">🎲</button>
+        </div>
+
+        <div class="section-title">📸 الماسح الضوئي (مع فلاش وزوم):</div>
+        
+        <div id="camera-wrapper">
+            <video id="scanVideo" playsinline muted autoplay></video>
+            <div class="scan-overlay"><div class="scan-line"></div></div>
+        </div>
+
+        <div class="cam-controls-bar" id="camControls">
+            <button class="flash-btn" id="flashBtn" onclick="toggleFlash()">⚡</button>
+            <div class="zoom-container">
+                <span style="font-size:12px">➖</span>
+                <input type="range" id="zoomSlider" min="1" max="5" step="0.1" value="1" oninput="applyZoom(this.value)">
+                <span style="font-size:12px">➕</span>
             </div>
         </div>
 
-        <div class="camera-section">
-            <div class="section-title">📸 مسح الباركود (IMEI):</div>
-            <div id="camera-wrapper">
-                <video id="scanVideo" playsinline muted autoplay></video>
-                <div class="scan-overlay"><div class="scan-line"></div></div>
-            </div>
-            <button class="toggle-cam-btn-styled" id="camToggleBtn" onclick="toggleCamera()">
-                <span id="camIcon">📷</span> <span id="camText">فتح الماسح الضوئي</span>
-            </button>
-            <input type="text" id="imeiInput" class="barcode-input-styled" value="354645091451710" oninput="updateBarcodeOnly()" placeholder="أو اكتب الباركود...">
-        </div>
+        <button class="toggle-cam-btn" id="camToggleBtn" onclick="toggleCamera()">
+            📷 فتح الكاميرا
+        </button>
+
+        <input type="text" id="imeiInput" class="barcode-input-styled" value="354645091451710" oninput="updateBarcodeOnly()" placeholder="أو اكتب الباركود يدوياً...">
 
         <div class="preview-container">
-            <div class="preview-label-title">معاينة الملصق:</div>
             <div id="capture-area" class="printer-head">
                 <div class="top-spacer"></div>
                 <div class="white-label">
@@ -118,18 +153,18 @@
 
         <div class="bt-section">
             <div id="btStatus" class="bt-status">🔴 الطابعة غير متصلة</div>
-            <button class="btn-bt btn-connect" onclick="connectToPrinter()">🔗 بحث عن طابعة بلوتوث</button>
+            <button class="btn-bt btn-connect" onclick="connectToPrinter()">🔗 بحث عن طابعة</button>
             <button id="printBtn" class="btn-bt btn-print-direct" onclick="printDirectly()">🖨️ طباعة فورية</button>
         </div>
 
         <div class="actions-row">
-            <button class="btn-action btn-share" onclick="shareImage()">📤 مشاركة صورة</button>
-            <button class="btn-action btn-download" onclick="downloadImage()">⬇️ تنزيل صورة</button>
+            <button class="btn-action btn-share" onclick="shareImage()">📤 مشاركة</button>
+            <button class="btn-action btn-download" onclick="downloadImage()">⬇️ تنزيل</button>
         </div>
     </div>
 
 <script>
-    // === الدوال الأساسية (توليد الرقم، الباركود، الكاميرا) ===
+    // === 1. منطق الأرقام والباركود ===
     const PREFIX = "13"; const TARGET_LENGTH = 10;
     function generateRandomNumber() {
         let userPart = document.getElementById('userInputPart').value.replace(/[^0-9]/g, '');
@@ -142,157 +177,168 @@
         var imei = document.getElementById('imeiInput').value;
         if(imei) { try { JsBarcode("#barcode", imei, { format: "CODE128", lineColor: "#000", width: 1.7, height: 55, displayValue: true, fontSize: 16, fontOptions: "bold", margin: 2 }); } catch(e) {} }
     }
-    
-    // --- منطق الكاميرا المختصر ---
-    let stream = null, isScanning = false;
-    const videoEl = document.getElementById('scanVideo'), wrapper = document.getElementById('camera-wrapper');
+
+    // ============================================
+    // === 🔥 نظام الماسح الهجين + التحكم 🔥 ===
+    // ============================================
+    let stream = null;
+    let isScanning = false;
+    let videoTrack = null;
+    const videoEl = document.getElementById('scanVideo');
+    const wrapper = document.getElementById('camera-wrapper');
+    const controls = document.getElementById('camControls');
+    const toggleBtn = document.getElementById('camToggleBtn');
+
     async function toggleCamera() {
         if (isScanning) { stopCamera(); return; }
+
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            videoEl.srcObject = stream; wrapper.style.display = 'block'; isScanning = true;
-            document.getElementById('camToggleBtn').style.backgroundColor = "#dc3545"; document.getElementById('camText').innerText = "إغلاق";
+            // طلب الكاميرا الخلفية بدقة عالية
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { facingMode: "environment", width: { ideal: 1920 } } 
+            });
+            videoEl.srcObject = stream;
+            videoTrack = stream.getVideoTracks()[0];
+
+            // إظهار الواجهة
+            wrapper.style.display = 'block';
+            controls.style.display = 'flex';
+            toggleBtn.innerText = "❌ إغلاق الكاميرا";
+            toggleBtn.classList.add('stop');
+            isScanning = true;
+
+            // --- خوارزمية المسح (الأولوية للـ Native لأنه أسرع) ---
             if ("BarcodeDetector" in window) {
+                console.log("Using Native BarcodeDetector");
                 const detector = new BarcodeDetector({ formats: ["code_128", "ean_13", "qr_code"] });
-                const tick = async () => { if (!isScanning) return; try { const codes = await detector.detect(videoEl); if (codes.length) handleSuccess(codes[0].rawValue); } catch (e) {} requestAnimationFrame(tick); }; tick();
+                
+                const tick = async () => {
+                    if (!isScanning) return;
+                    try {
+                        const codes = await detector.detect(videoEl);
+                        if (codes.length) handleSuccess(codes[0].rawValue);
+                    } catch (e) {}
+                    requestAnimationFrame(tick);
+                };
+                tick();
+            
+            // --- البديل: ZXing للآيفون ---
             } else {
-                const reader = new ZXing.BrowserMultiFormatReader(); reader.decodeFromVideoDevice(null, videoEl, (result) => { if (result) handleSuccess(result.getText()); });
+                console.log("Using ZXing Fallback");
+                const reader = new ZXing.BrowserMultiFormatReader();
+                reader.decodeFromVideoDevice(null, videoEl, (result) => {
+                    if (result) handleSuccess(result.getText());
+                });
             }
-        } catch (e) { alert("الكاميرا غير متاحة"); }
+
+        } catch (e) {
+            alert("تعذر الوصول للكاميرا: " + e.message);
+            stopCamera();
+        }
     }
-    function stopCamera() { isScanning = false; if(stream) stream.getTracks().forEach(t=>t.stop()); wrapper.style.display='none'; document.getElementById('camToggleBtn').style.backgroundColor = "#1a73e8"; document.getElementById('camText').innerText = "فتح الماسح"; }
-    function handleSuccess(val) { document.getElementById('imeiInput').value = val.replace(/[^0-9]/g, ''); updateBarcodeOnly(); stopCamera(); }
 
-    // === دوال الحفظ القديمة ===
-    function shareImage() { html2canvas(document.getElementById("capture-area"), {scale:3}).then(c => { c.toBlob(b => { navigator.share ? navigator.share({files:[new File([b],"label.png",{type:"image/png"})]}) : downloadImage(); }) }); }
-    function downloadImage() { html2canvas(document.getElementById("capture-area"), {scale:3}).then(c => { const a = document.createElement('a'); a.download='label.png'; a.href=c.toDataURL(); a.click(); }); }
+    function stopCamera() {
+        isScanning = false;
+        if(stream) { stream.getTracks().forEach(t => t.stop()); stream = null; videoTrack = null; }
+        
+        wrapper.style.display = 'none';
+        controls.style.display = 'none';
+        toggleBtn.innerText = "📷 فتح الكاميرا";
+        toggleBtn.classList.remove('stop');
+        document.getElementById('flashBtn').classList.remove('active');
+    }
 
-    // ============================================================
-    // === 🔥 محرك طباعة البلوتوث (ESC/POS Bluetooth Engine) 🔥 ===
-    // ============================================================
+    function handleSuccess(val) {
+        // اهتزاز وتنبيه
+        if (navigator.vibrate) navigator.vibrate(200);
+        
+        // تنظيف الرقم ووضعه
+        document.getElementById('imeiInput').value = val.replace(/[^0-9]/g, '');
+        updateBarcodeOnly();
+        
+        stopCamera();
+    }
+
+    // === ⚡ التحكم بالفلاش والزوم ⚡ ===
+    async function toggleFlash() {
+        if (!videoTrack) return;
+        const btn = document.getElementById('flashBtn');
+        try {
+            // عكس الحالة الحالية
+            let mode = !btn.classList.contains('active');
+            await videoTrack.applyConstraints({ advanced: [{ torch: mode }] });
+            btn.classList.toggle('active');
+        } catch (e) { alert("الفلاش غير مدعوم في هذا الجهاز"); }
+    }
+
+    async function applyZoom(val) {
+        if (!videoTrack) return;
+        try {
+            await videoTrack.applyConstraints({ advanced: [{ zoom: parseFloat(val) }] });
+        } catch (e) {}
+    }
+
+
+    // ===========================================
+    // === 3. نظام الطباعة بلوتوث (ESC/POS) ===
+    // ===========================================
+    let printCharacteristic = null; let printerDevice = null;
     
-    let printCharacteristic = null;
-    let printerDevice = null;
-
     async function connectToPrinter() {
         try {
             document.getElementById('btStatus').innerText = "🟡 جاري البحث...";
-            
-            // طلب الاتصال بأي جهاز بلوتوث يدعم الخدمة التسلسلية
             printerDevice = await navigator.bluetooth.requestDevice({
-                filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }], // خدمة شائعة للطابعات الصينية
-                optionalServices: [
-                    '000018f0-0000-1000-8000-00805f9b34fb', 
-                    'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
-                    '0000ff00-0000-1000-8000-00805f9b34fb'
-                ],
+                filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+                optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'],
                 acceptAllDevices: false 
-            }).catch(async (e) => {
-                // محاولة أخرى اذا لم ينجح الفلتر (السماح بكل الأجهزة)
-                return await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] });
-            });
-
-            const server = await printerDevice.gatt.connect();
+            }).catch(async (e) => { return await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'] }); });
             
-            // محاولة إيجاد خدمة الكتابة
+            const server = await printerDevice.gatt.connect();
             const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
             printCharacteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
-
-            // نجاح الاتصال
+            
             document.getElementById('btStatus').innerHTML = `🟢 متصل بـ: ${printerDevice.name}`;
             document.getElementById('btStatus').classList.add('connected');
             document.getElementById('printBtn').classList.add('ready');
-
+            
             printerDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
-        } catch (error) {
-            console.error(error);
-            document.getElementById('btStatus').innerText = "🔴 فشل الاتصال: " + error.message;
-            alert("تأكد أن الطابعة تعمل، والبلوتوث مفعل، واستخدم Chrome على الأندرويد.");
-        }
+        } catch (error) { document.getElementById('btStatus').innerText = "🔴 فشل الاتصال"; alert("تأكد أنك تستخدم Chrome وأن البلوتوث مفعل."); }
     }
+    
+    function onDisconnected() { document.getElementById('btStatus').innerText = "🔴 تم قطع الاتصال"; document.getElementById('btStatus').classList.remove('connected'); document.getElementById('printBtn').classList.remove('ready'); }
 
-    function onDisconnected() {
-        document.getElementById('btStatus').innerText = "🔴 تم قطع الاتصال";
-        document.getElementById('btStatus').classList.remove('connected');
-        document.getElementById('printBtn').classList.remove('ready');
-    }
-
-    // الدالة الرئيسية للطباعة
     async function printDirectly() {
-        if (!printCharacteristic) { alert("يرجى الاتصال بالطابعة أولاً"); return; }
-
-        // 1. تحويل الـ DIV إلى صورة Canvas
-        const canvas = await html2canvas(document.getElementById("capture-area"), { scale: 1.5 }); // تقليل الدقة قليلاً للسرعة
-        
-        // 2. تحويل الصورة إلى أوامر طابعة (ESC/POS Hex)
+        if (!printCharacteristic) { alert("اتصل بالطابعة أولاً"); return; }
+        const canvas = await html2canvas(document.getElementById("capture-area"), { scale: 1.5 });
         const printData = getImagePrintData(canvas);
-
-        // 3. إرسال البيانات للطابعة (بشكل مقسم لتجنب تعليق البلوتوث)
         await sendDataToPrinter(printData);
     }
 
-    // دالة تحويل الصورة إلى بايتات (Monochrome Bitmap)
     function getImagePrintData(canvas) {
-        const ctx = canvas.getContext('2d');
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const width = canvas.width;
-        const height = canvas.height;
-
-        // أوامر تهيئة الطابعة
-        let commands = [
-            0x1B, 0x40, // تهيئة (Initialize)
-            0x1D, 0x76, 0x30, 0x00, // أمر طباعة الصورة (GS v 0)
-        ];
-
-        // إضافة أبعاد الصورة (xL, xH, yL, yH)
-        const xL = (width / 8) % 256;
-        const xH = Math.floor((width / 8) / 256);
-        const yL = height % 256;
-        const yH = Math.floor(height / 256);
+        const ctx = canvas.getContext('2d'); const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const width = canvas.width; const height = canvas.height;
+        let commands = [0x1B, 0x40, 0x1D, 0x76, 0x30, 0x00];
+        const xL = (width / 8) % 256; const xH = Math.floor((width / 8) / 256);
+        const yL = height % 256; const yH = Math.floor(height / 256);
         commands.push(xL, xH, yL, yH);
-
-        // تحويل البكسلات
-        let buffer = [];
-        let byte = 0;
-        let bitCount = 0;
-
+        let buffer = []; let byte = 0; let bitCount = 0;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const offset = (y * width + x) * 4;
-                const r = imgData.data[offset];
-                const g = imgData.data[offset + 1];
-                const b = imgData.data[offset + 2];
-                // معادلة السطوع (إذا فاتح = 0، إذا غامق = 1)
-                const brightness = (r + g + b) / 3;
+                const brightness = (imgData.data[offset] + imgData.data[offset + 1] + imgData.data[offset + 2]) / 3;
                 const bit = brightness < 128 ? 1 : 0; 
-
-                byte |= (bit << (7 - bitCount));
-                bitCount++;
-
-                if (bitCount === 8) {
-                    commands.push(byte);
-                    byte = 0;
-                    bitCount = 0;
-                }
+                byte |= (bit << (7 - bitCount)); bitCount++;
+                if (bitCount === 8) { commands.push(byte); byte = 0; bitCount = 0; }
             }
         }
-
-        // أوامر إنهاء (تغذية الورق)
-        commands.push(0x1B, 0x64, 0x02); // تغذية سطرين
-        commands.push(0x1B, 0x64, 0x02); // تغذية إضافية للقص
-
+        commands.push(0x1B, 0x64, 0x02, 0x1B, 0x64, 0x02);
         return new Uint8Array(commands);
     }
+    async function sendDataToPrinter(data) { const CHUNK_SIZE = 100; for (let i = 0; i < data.length; i += CHUNK_SIZE) { await printCharacteristic.writeValue(data.slice(i, i + CHUNK_SIZE)); } }
 
-    // دالة إرسال البيانات (Chunking)
-    async function sendDataToPrinter(data) {
-        const CHUNK_SIZE = 100; // إرسال 100 بايت في المرة
-        for (let i = 0; i < data.length; i += CHUNK_SIZE) {
-            const chunk = data.slice(i, i + CHUNK_SIZE);
-            await printCharacteristic.writeValue(chunk);
-        }
-    }
+    // === 4. حفظ الصورة ===
+    function shareImage() { html2canvas(document.getElementById("capture-area"), {scale:3}).then(c => { c.toBlob(b => { navigator.share ? navigator.share({files:[new File([b],"label.png",{type:"image/png"})]}) : downloadImage(); }) }); }
+    function downloadImage() { html2canvas(document.getElementById("capture-area"), {scale:3}).then(c => { const a = document.createElement('a'); a.download='label.png'; a.href=c.toDataURL(); a.click(); }); }
 
     generateRandomNumber(); updateBarcodeOnly();
 </script>
