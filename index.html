@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام البحراني + طباعة 57مم</title>
+    <title>نظام البحراني (دقة عالية)</title>
     
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
@@ -76,9 +76,11 @@
 
         /* المعاينة (مضبوطة على 57مم) */
         .preview-container { background: #f8f9fa; border-radius: 12px; padding: 15px; text-align: center; margin-top: 20px; margin-bottom: 20px; }
+        
+        /* ضبط العرض بدقة ليكون قريباً من البكسلات الحقيقية */
         .printer-head { 
             background-color: #e8d880; 
-            width: 384px; /* هذا هو العرض السحري لورق 57مم */ 
+            width: 384px; 
             height: auto; 
             display: flex; flex-direction: column; align-items: flex-start; 
             padding-bottom: 10px; overflow: hidden; margin: 0 auto; 
@@ -88,7 +90,9 @@
         .white-label { background-color: white; width: 275px; margin-right: 0px; border-radius: 4px; padding: 5px 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .shop-name { font-size: 19px; font-weight: 900; color: #000; margin-bottom: 8px; line-height: 1.1; white-space: nowrap; }
         .big-number { font-size: 27px; font-weight: 900; font-family: Arial; border-bottom: 3px solid black; padding-bottom: 2px; display: inline-block; margin-bottom: 5px; line-height: 1; letter-spacing: 0.5px; }
-        #barcode { width: 98% !important; height: auto; }
+        
+        /* باركود بحدود حادة جداً */
+        #barcode { width: 98% !important; height: auto; shape-rendering: crispEdges; } 
 
         /* البلوتوث */
         .bt-section { background: #e3f2fd; border: 2px dashed #1a73e8; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
@@ -109,7 +113,7 @@
 <body>
 
     <div class="main-card">
-        <h2 class="app-title">نظام البحراني المتكامل 🌟</h2>
+        <h2 class="app-title">نظام البحراني (دقة عالية) 🌟</h2>
 
         <div class="section-title">🔢 الرقم الخاص:</div>
         <div class="input-row-styled">
@@ -141,7 +145,7 @@
         <div class="bt-section">
             <div id="btStatus" class="bt-status">🔴 الطابعة غير متصلة</div>
             <button class="btn-bt btn-connect" onclick="connectToPrinter()">🔗 بحث عن طابعة</button>
-            <button id="printBtn" class="btn-bt btn-print-direct" onclick="printDirectly()">🖨️ طباعة فورية (57mm)</button>
+            <button id="printBtn" class="btn-bt btn-print-direct" onclick="printDirectly()">🖨️ طباعة فورية (دقة عالية)</button>
         </div>
 
         <div class="actions-row">
@@ -151,7 +155,7 @@
     </div>
 
 <script>
-    // === دوال النظام الأساسية ===
+    // === دوال النظام ===
     const PREFIX = "13"; const TARGET_LENGTH = 10;
     function generateRandomNumber() {
         let userPart = document.getElementById('userInputPart').value.replace(/[^0-9]/g, '');
@@ -160,9 +164,24 @@
         let finalNumber = (PREFIX + userPart + randomPart).substring(0, TARGET_LENGTH);
         document.getElementById('displayTopNum').innerText = finalNumber;
     }
+
+    // === تحديث الباركود (السر هنا: العرض 2 بدلاً من 1.7) ===
     function updateBarcodeOnly() {
         var imei = document.getElementById('imeiInput').value;
-        if(imei) { try { JsBarcode("#barcode", imei, { format: "CODE128", lineColor: "#000", width: 1.7, height: 55, displayValue: true, fontSize: 16, fontOptions: "bold", margin: 2 }); } catch(e) {} }
+        if(imei) { 
+            try { 
+                JsBarcode("#barcode", imei, { 
+                    format: "CODE128", 
+                    lineColor: "#000", 
+                    width: 2,   // تغيير العرض إلى رقم صحيح لزيادة الحدة
+                    height: 55, 
+                    displayValue: true, 
+                    fontSize: 16, 
+                    fontOptions: "bold", 
+                    margin: 2 
+                }); 
+            } catch(e) {} 
+        }
     }
 
     // === الكاميرا ===
@@ -190,10 +209,10 @@
     async function applyZoom(val) { if (!videoTrack) return; try { await videoTrack.applyConstraints({ advanced: [{ zoom: parseFloat(val) }] }); } catch (e) {} }
 
     // ===========================================
-    // === 🔥 نظام الطباعة 57مم المطور 🔥 ===
+    // === 🔥 نظام الطباعة 57مم (بيكسل-بيرفكت) 🔥 ===
     // ===========================================
     let printCharacteristic = null; let printerDevice = null;
-    const PRINTER_WIDTH_PX = 384; // عرض 57مم بالبكسل
+    const PRINTER_WIDTH_PX = 384; 
 
     async function connectToPrinter() {
         try {
@@ -218,20 +237,25 @@
     async function printDirectly() {
         if (!printCharacteristic) { alert("اتصل بالطابعة أولاً"); return; }
         
-        // 1. التقاط الصورة بدقة عالية
-        const capturedCanvas = await html2canvas(document.getElementById("capture-area"), { scale: 2, useCORS: true });
+        // 1. رفع دقة الالتقاط للحصول على خطوط حادة جداً
+        const capturedCanvas = await html2canvas(document.getElementById("capture-area"), { 
+            scale: 4, // دقة عالية جداً
+            useCORS: true,
+            logging: false
+        });
         
-        // 2. تغيير حجم الصورة لتكون 384 بكسل بالضبط (عرض 57مم)
-        // هذا هو الجزء الذي يصلح مشكلة "الخربشة"
+        // 2. تحجيم ذكي إلى 384 بكسل
         const resizedCanvas = document.createElement('canvas');
         const scaleFactor = PRINTER_WIDTH_PX / capturedCanvas.width;
         resizedCanvas.width = PRINTER_WIDTH_PX;
         resizedCanvas.height = capturedCanvas.height * scaleFactor;
         
         const ctx = resizedCanvas.getContext('2d');
+        // تعطيل تنعيم الصور للحفاظ على حدة الباركود
+        ctx.imageSmoothingEnabled = false; 
         ctx.drawImage(capturedCanvas, 0, 0, resizedCanvas.width, resizedCanvas.height);
 
-        // 3. تحويل وإرسال
+        // 3. إرسال
         const printData = getImagePrintData(resizedCanvas);
         await sendDataToPrinter(printData);
     }
@@ -239,52 +263,32 @@
     function getImagePrintData(canvas) {
         const ctx = canvas.getContext('2d'); const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const width = canvas.width; const height = canvas.height;
-        
-        // أوامر تهيئة الطابعة (ESC/POS)
-        let commands = [
-            0x1B, 0x40, // تهيئة
-            0x1D, 0x76, 0x30, 0x00 // أمر طباعة صورة (GS v 0)
-        ];
-        
-        // إرسال الأبعاد (Width bytes, Height dots)
-        // العرض بالبايت = 384 / 8 = 48 بايت
+        let commands = [0x1B, 0x40, 0x1D, 0x76, 0x30, 0x00];
         const xL = (width / 8) % 256; const xH = Math.floor((width / 8) / 256);
         const yL = height % 256; const yH = Math.floor(height / 256);
         commands.push(xL, xH, yL, yH);
         
         let byte = 0; let bitCount = 0;
-        
-        // تحويل البكسلات إلى أبيض وأسود (Binary)
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
                 const offset = (y * width + x) * 4;
-                const r = imgData.data[offset];
-                const g = imgData.data[offset + 1];
-                const b = imgData.data[offset + 2];
-                
-                // عتبة التحويل (Threshold)
+                const r = imgData.data[offset]; const g = imgData.data[offset + 1]; const b = imgData.data[offset + 2];
+                // معادلة حادة: أي شيء ليس أبيض تماماً يعتبر أسود
                 const brightness = (r + g + b) / 3;
-                // إذا كان غامق (أقل من 128) نعتبره نقطة سوداء (1)
-                const bit = brightness < 128 ? 1 : 0; 
+                const bit = brightness < 180 ? 1 : 0; // رفعنا العتبة لزيادة سواد الخطوط
                 
-                byte |= (bit << (7 - bitCount)); 
-                bitCount++;
-                
+                byte |= (bit << (7 - bitCount)); bitCount++;
                 if (bitCount === 8) { commands.push(byte); byte = 0; bitCount = 0; }
             }
         }
-        
-        // أوامر قص / تغذية
         commands.push(0x1B, 0x64, 0x03); 
         return new Uint8Array(commands);
     }
 
     async function sendDataToPrinter(data) { 
-        // إرسال البيانات مجزأة لتجنب امتلاء ذاكرة الطابعة
         const CHUNK_SIZE = 100; 
         for (let i = 0; i < data.length; i += CHUNK_SIZE) { 
             await printCharacteristic.writeValue(data.slice(i, i + CHUNK_SIZE)); 
-            // تأخير بسيط جداً لضمان استقرار البلوتوث
             await new Promise(r => setTimeout(r, 10)); 
         } 
     }
