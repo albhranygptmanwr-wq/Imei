@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>معايرة دقيقة (4 اتجاهات)</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        body { font-family: sans-serif; background-color: #222; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; color: #333; }
+        .container { background: white; padding: 10px; border-radius: 12px; width: 100%; max-width: 400px; text-align: center; }
+        
+        /* --- لوحة التحكم بالاتجاهات --- */
+        .control-panel {
+            background: #eee;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .d-pad {
+            display: grid;
+            grid-template-columns: 60px 60px 60px;
+            grid-template-rows: 50px 50px;
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .move-btn {
+            background: white; border: 1px solid #999; border-radius: 8px;
+            font-size: 20px; cursor: pointer; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .move-btn:active { background: #ccc; transform: translateY(2px); }
+        
+        /* ترتيب الأزرار */
+        .btn-up { grid-column: 2; grid-row: 1; background-color: #e3f2fd; color: #0d47a1; }
+        .btn-left { grid-column: 1; grid-row: 2; }
+        .btn-right { grid-column: 3; grid-row: 2; }
+        .btn-down { grid-column: 2; grid-row: 2; background-color: #e3f2fd; color: #0d47a1; }
+        
+        .status-display { font-size: 12px; font-family: monospace; color: #555; margin-bottom: 5px; }
+
+        /* --- الحقول --- */
+        .input-row { margin-bottom: 8px; }
+        input[type="text"] { width: 90%; padding: 8px; text-align: center; font-weight: bold; border: 1px solid #ccc; border-radius: 5px; }
+
+        .btn-save { background: #28a745; color: white; border: none; padding: 12px; width: 100%; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+
+        /* --- منطقة المعاينة (المحاكاة) --- */
+        .preview-wrapper {
+            background: #444; padding: 15px; border-radius: 8px; margin-top: 15px;
+            display: flex; justify-content: center;
+        }
+
+        /* الورقة الكاملة 58مم */
+        #final-canvas {
+            width: 384px; height: 200px; 
+            background-color: white; 
+            position: relative; overflow: hidden;
+            box-shadow: 0 0 10px #000;
+        }
+
+        /* المحتوى المتحرك */
+        #sticker-content {
+            width: 250px; /* عرض الملصق */
+            position: absolute;
+            top: 10px; left: 10px; /* القيم الافتراضية */
+            text-align: center;
+            border: 1px dashed #ccc; /* حدود وهمية */
+            transition: top 0.1s, left 0.1s; /* حركة ناعمة */
+        }
+
+        .shop-name { font-family: Tahoma; font-size: 18px; font-weight: bold; margin-bottom: 2px; white-space: nowrap; }
+        .big-number { font-family: Arial; font-size: 26px; font-weight: 900; letter-spacing: 1px; margin: 0; line-height: 1.2; }
+        svg#barcode { width: 100%; height: 45px; display: block; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h3 style="margin:5px;">لوحة المعايرة (4 اتجاهات)</h3>
+        <div style="font-size:11px; color:#666; margin-bottom:10px;">اضغط الأسهم لتحريك الطباعة لتطابق الملصق</div>
+
+        <div class="control-panel">
+            <div class="status-display">
+                X: <span id="x-val">10</span> | Y: <span id="y-val">10</span>
+            </div>
+            
+            <div class="d-pad">
+                <button class="move-btn btn-up" onclick="move('y', -5)">▲</button>
+                
+                <button class="move-btn btn-left" onclick="move('x', -5)">◀</button>
+                
+                <button class="move-btn btn-down" onclick="move('y', 5)">▼</button>
+                
+                <button class="move-btn btn-right" onclick="move('x', 5)">▶</button>
+            </div>
+        </div>
+
+        <div class="input-row">
+            <input type="text" id="shopInput" value="البحراني للهواتف" oninput="updateContent()">
+        </div>
+        <div class="input-row">
+            <input type="text" id="numInput" value="1360123456" oninput="updateContent()">
+        </div>
+
+        <button class="btn-save" onclick="saveImage()">💾 حفظ للطباعة</button>
+    </div>
+
+    <div class="preview-wrapper">
+        <div id="final-canvas">
+            <div id="sticker-content">
+                <div class="shop-name" id="shopTxt">البحراني للهواتف</div>
+                <div class="big-number" id="numTxt">1360123456</div>
+                <svg id="barcode"></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // القيم الابتدائية للموقع
+        let posX = 80; // إزاحة لليمين قليلاً
+        let posY = 10; // إزاحة من الأعلى
+
+        function move(axis, amount) {
+            if(axis === 'x') posX += amount;
+            if(axis === 'y') posY += amount;
+            
+            // تحديث الواجهة
+            const el = document.getElementById('sticker-content');
+            el.style.left = posX + 'px';
+            el.style.top = posY + 'px';
+            
+            // تحديث الأرقام
+            document.getElementById('x-val').innerText = posX;
+            document.getElementById('y-val').innerText = posY;
+        }
+
+        function updateContent() {
+            const num = document.getElementById('numInput').value;
+            const shop = document.getElementById('shopInput').value;
+            
+            document.getElementById('numTxt').innerText = num;
+            document.getElementById('shopTxt').innerText = shop;
+
+            try {
+                JsBarcode("#barcode", num, {
+                    format: "CODE128",
+                    lineColor: "#000",
+                    width: 2,
+                    height: 40,
+                    displayValue: false,
+                    margin: 0,
+                    background: "transparent"
+                });
+            } catch(e){}
+        }
+
+        function saveImage() {
+            const element = document.getElementById("final-canvas");
+            
+            // إخفاء الحدود المتقطعة قبل الحفظ
+            document.getElementById('sticker-content').style.border = "none";
+
+            html2canvas(element, { 
+                scale: 1.5, 
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                width: 384, // عرض 58مم ثابت
+                windowWidth: 384
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `Print_${document.getElementById('numTxt').innerText}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                
+                // إرجاع الحدود
+                document.getElementById('sticker-content').style.border = "1px dashed #ccc";
+            });
+        }
+
+        // تشغيل أولي
+        window.onload = function() {
+            move('x', 0); // تطبيق الموقع الابتدائي
+            updateContent();
+        };
+    </script>
+</body>
+</html>
