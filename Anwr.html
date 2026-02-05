@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Unlock Pro - Modern UI</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --sidebar-bg: rgba(15, 23, 42, 0.8);
+            --accent-gold: #ffd700;
+            --accent-blue: #00f3ff;
+            --text-main: #e2e8f0;
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --card-bg: rgba(30, 41, 59, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI Variable', 'Inter', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1e293b, #0b0f19);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar Style */
+        .sidebar {
+            width: 240px;
+            background: var(--sidebar-bg);
+            backdrop-filter: blur(15px);
+            border-left: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            transition: 0.3s;
+        }
+
+        .logo {
+            padding: 0 25px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--accent-blue);
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        .nav-item {
+            padding: 12px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: 0.3s;
+            border-right: 3px solid transparent;
+            color: #94a3b8;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border-right-color: var(--accent-blue);
+        }
+
+        .nav-item i { font-size: 18px; }
+
+        .user-info {
+            margin-top: auto;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            font-size: 12px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        /* Main Content area */
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .top-tabs {
+            display: flex;
+            gap: 10px;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 20px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid var(--glass-border);
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        .tab.active {
+            background: var(--accent-blue);
+            color: #000;
+            font-weight: bold;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            height: 100%;
+        }
+
+        /* Action Buttons Area */
+        .actions-panel {
+            background: var(--card-bg);
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .primary-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-main {
+            height: 120px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            transition: 0.3s;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-unlock { background: linear-gradient(135deg, #0062ff, #00f3ff); }
+        .btn-relock { background: linear-gradient(135deg, #7928ca, #ff0080); }
+
+        .btn-main:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .secondary-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .btn-sub {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 8px;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .btn-sub:hover { background: rgba(255, 255, 255, 0.1); border-color: var(--accent-blue); }
+
+        /* Log Panel */
+        .log-panel {
+            background: #000;
+            border-radius: 15px;
+            border: 1px solid var(--glass-border);
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.05);
+        }
+
+        .log-content { overflow-y: auto; flex: 1; line-height: 1.6; }
+        .log-success { color: #4ade80; }
+        .log-info { color: var(--accent-blue); }
+        .log-error { color: #f87171; }
+
+        .log-footer {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-stop { flex: 1; background: #dc2626; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
+        .btn-shot { flex: 1; background: #334155; color: white; border: none; padding: 10px; border-radius: 8px; cursor: pointer; }
+
+        /* Bottom Status Bar */
+        .status-bar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 20px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            border-top: 1px solid var(--glass-border);
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo">DEEP UNLOCK <small style="font-size: 10px; color: #64748b;">V 2.6.3</small></div>
+        
+        <div class="nav-item active"><i class="fas fa-network-wired"></i> Network</div>
+        <div class="nav-item"><i class="fas fa-microchip"></i> Deep-Tools</div>
+        <div class="nav-item"><i class="fas fa-cog"></i> Settings</div>
+        <div class="nav-item"><i class="fas fa-folder-open"></i> Files</div>
+        <div class="nav-item"><i class="fas fa-history"></i> History</div>
+        
+        <div class="user-info">
+            <div style="margin-bottom: 5px;"><i class="fas fa-user"></i> ID: M773763323</div>
+            <div style="color: var(--accent-gold);"><i class="fas fa-coins"></i> Credit: 820</div>
+            <div style="margin-top: 10px; opacity: 0.6;"><i class="fas fa-sign-out-alt"></i> Logout</div>
+        </div>
+    </aside>
+
+    <main class="main-container">
+        <header class="top-tabs">
+            <div class="tab active">Unlock</div>
+            <div class="tab">Read Code</div>
+            <div class="tab">Unlock MTK</div>
+            <div class="tab">Unlock SPD</div>
+            <div class="tab">Services</div>
+        </header>
+
+        <div class="content-grid">
+            <section class="actions-panel">
+                <div style="font-size: 14px; opacity: 0.7;"><i class="fas fa-info-circle"></i> Device Info: SM-S928U | Android 16</div>
+                
+                <div class="primary-actions">
+                    <button class="btn-main btn-unlock">
+                        <i class="fas fa-lock-open fa-2x"></i>
+                        <span>Direct Unlock</span>
+                    </button>
+                    <button class="btn-main btn-relock">
+                        <i class="fas fa-key fa-2x"></i>
+                        <span>Carrier Relock</span>
+                    </button>
+                </div>
+
+                <div class="secondary-actions">
+                    <button class="btn-sub"><i class="fas fa-file-download"></i> Read Cert</button>
+                    <button class="btn-sub"><i class="fas fa-file-upload"></i> Write Cert</button>
+                    <button class="btn-sub"><i class="fas fa-exchange-alt"></i> Switch CSC</button>
+                    <button class="btn-sub"><i class="fas fa-undo"></i> Reset Security</button>
+                </div>
+
+                <button class="btn-sub" style="margin-top: auto; border-style: dashed;">
+                    <i class="fas fa-search"></i> Check If Model Supported
+                </button>
+            </section>
+
+            <section class="log-panel">
+                <div class="log-content">
+                    <div class="log-info">-> Connecting For Devices : <span class="log-success">Okay</span></div>
+                    <div>-> Mobile Model : SM-S928U</div>
+                    <div>-> Mobile Brand : Samsung</div>
+                    <div class="log-info">-> Getting Auth From Server...</div>
+                    <div class="log-success">-> Calculating Relock... Ok</div>
+                    <div class="log-success">-> Write Carrier Signature... Ok</div>
+                    <div class="log-info" style="margin-top: 10px;">Carrier Relock Done (Samsung)</div>
+                    <div style="color: #64748b; font-size: 11px;">Elapsed Time : (01:09)</div>
+                </div>
+                
+                <div class="log-footer">
+                    <button class="btn-stop">STOP</button>
+                    <button class="btn-shot"><i class="fas fa-camera"></i></button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="status-bar">
+        <div><i class="fas fa-server"></i> Server: <span style="color: var(--accent-blue);">Online</span></div>
+        <div>Yemen Mobile - VoLTE Research Project 2026</div>
+    </footer>
+
+</body>
+</html>
